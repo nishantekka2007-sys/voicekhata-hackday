@@ -58,7 +58,7 @@
     const lower = text.toLowerCase();
     if (/(?:उधार|उधारी|उधारावर|उधारीवर|\budha+r\b|\budhar\b|\bcredit\b|\bon credit\b)/iu.test(lower)) return "credit_sale";
     if (/(?:खर्च|खर्[च्]|बिजली|बिजली बिल|\bexpense\b|\bshop rent\b|\brent\b|\bkharcha\b)/iu.test(lower)) return "cash_expense";
-    if (/(?:वापस|जमा|भुगतान|परत|दिले|दिया|दिए|मिले|\bpaid\b|\bpayment\b|\brepaid\b|\breturned\b|\bwapas\b|\bjama\b|\breceived\b)/iu.test(lower)) {
+    if (/(?:वापस|जमा|भुगतान|परत|दिले|दिया|दिए|मिले|\bpaid\b|\bpayment\b|\brepaid\b|\breturned\b|\bwapas\b|\bjama\b|\breceived\b|\bdiye\b|\bdiya\b)/iu.test(lower)) {
       if (/(?:\bko\b|को|ला)\s*[\s\S]*(?:दिया|दिए|diye|diya)/iu.test(lower) && !/(?:\bne\b|ने|ने\s)/iu.test(lower)) return "credit_sale";
       return "payment_received";
     }
@@ -68,6 +68,8 @@
   function extractCustomer(text, kind) {
     if (kind === "cash_expense") return "Shop Expense";
     const trimmed = text.replace(/^(?:आज|aaj|today|कल|yesterday|aaj\s+toh)\s+/iu, "").trim();
+    const marathi = trimmed.match(/^([\p{L}]{2,}?)(?:ला|ने)\s+/u);
+    if (marathi) return marathi[1];
     const name = trimmed.match(/^([\p{L}][\p{L}.'-]*(?:\s+[\p{L}][\p{L}.'-]*){0,2}?)\s+(?:ने|को|से|ला|नी|नेच|\bne\b|\bko\b|\bse\b|\bpaid\b|\btook\b|\bgave\b)/iu);
     if (name) return name[1].trim();
     // Only infer the first word if there is an explicit transaction verb and amount.
