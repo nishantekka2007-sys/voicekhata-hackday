@@ -84,7 +84,7 @@
       await loadLedger();
     } catch (e) {
       sessionStorage.removeItem(TOKEN_KEY); user = null; showLogin();
-      showMode("Sign-in failed: " + e.message);
+      showMode("Google sign-in could not be completed. Check OAuth JavaScript origins, your backend and the account used. " + e.message);
     }
   }
   async function initialize() {
@@ -97,11 +97,15 @@
     const panel = document.querySelector(".sidebar-foot");
     if (!panel) return;
     panel.prepend(status, card);
-    if (!base) { showMode("GitHub Pages preview only. Deploy the HTTPS FastAPI backend to enable sync."); showLogin(); return; }
+    if (!base) {
+      showMode("Offline workspace: voice entry and ledger work in this browser. Google sign-in requires a deployed HTTPS API and a configured Google OAuth client.");
+      showLogin();
+      return;
+    }
     try {
       const config = await request("/auth/config");
       if (!config.google_client_id) {
-        showMode("Backend reachable, but Google sign-in is not configured.");
+        showMode("Google login is not yet enabled. Configure GOOGLE_CLIENT_ID in the backend and authorize this website's origin in Google Cloud.");
         showLogin();
         return;
       }
@@ -134,7 +138,7 @@
         document.head.appendChild(script);
       }
     } catch (error) {
-      showMode("Backend unavailable — browser-only preview. " + error.message);
+      showMode("Cannot contact the configured API. Your browser-only ledger still works; check the HTTPS backend URL and CORS. " + error.message);
       showLogin();
     }
   }
