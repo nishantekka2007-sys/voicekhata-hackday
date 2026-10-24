@@ -73,8 +73,8 @@ function updateMetrics(){
   const creditCount=$("creditCountToday");if(creditCount)creditCount.textContent=todayRows.filter(item=>item.kind==="credit_sale").length+" transactions";
   $("activeCustomers").textContent=String(balances.length);
   const title=document.querySelector("#view-dashboard .page-heading h1");
-  const user=window.VoiceKhataAuth?.profile();
-  if(title) title.innerHTML="Welcome"+(user?.name ? ", "+esc(user.name.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
+  const user=getShopProfile();
+  if(title) title.innerHTML="Welcome"+(user?.ownerName ? ", "+esc(user.ownerName.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
 }
 function renderChart(){
   const canvas=$("moneyChart");if(!canvas||!window.Chart)return;
@@ -267,20 +267,57 @@ async function startRecording(){
     showToast("Could not start speech recognition. Check microphone permission or type the transaction.");
   }
 }
+function getShopProfile(){
+  try{return JSON.parse(localStorage.getItem("voicekhata.shop.profile")||"null");}catch{return null;}
+}
+function applyShopProfile(profile){
+  const shopLabel=$("shopNameLabel");
+  const ownerLabel=$("shopOwnerLabel");
+  const signedInName=$("signedInName");
+  const signedInNameTop=$("signedInNameTop");
+  const avatar=$("profileAvatar");
+  if(shopLabel)shopLabel.textContent=profile?.shopName||"Your shop";
+  if(ownerLabel)ownerLabel.textContent=profile?.ownerName||"Shop owner";
+  if(signedInName)signedInName.textContent=profile?.ownerName||"Shop owner";
+  if(signedInNameTop)signedInNameTop.textContent=profile?.shopName||"VoiceKhata";
+  if(avatar)avatar.textContent=initials(profile?.ownerName||profile?.shopName||"VK");
+}
 function loadShopProfile(){
-  let profile={};
-  try{profile=JSON.parse(localStorage.getItem("voicekhata.shop.profile")||"{}");}catch{}
+  let profile=getShopProfile();
   const params=new URLSearchParams(location.search);
-  const ownerName=(params.get("ownerName")||profile.ownerName||"").trim();
-  const shopName=(params.get("shopName")||profile.shopName||"").trim();
-  if(ownerName||shopName){
+  const ownerName=(params.get("ownerName")||profile?.ownerName||"").trim();
+  const shopName=(params.get("shopName")||profile?.shopName||"").trim();
+  if(ownerName&&shopName){
     profile={ownerName,shopName};
     try{localStorage.setItem("voicekhata.shop.profile",JSON.stringify(profile));}catch{}
   }
-  const shopLabel=document.getElementById("shopNameLabel");
-  const ownerLabel=document.getElementById("shopOwnerLabel");
-  if(shopLabel)shopLabel.textContent=profile.shopName||"Set up your shop";
-  if(ownerLabel)ownerLabel.textContent=profile.ownerName||"Owner account";
+  applyShopProfile(profile);
+  $("getStarted").classList.toggle("hidden",!!(profile?.ownerName&&profile?.shopName));
+  document.querySelector(".app-shell").classList.toggle("hidden",!(profile?.ownerName&&profile?.shopName));
+  if(profile?.ownerName&&$("setupOwnerName"))$("setupOwnerName").value=profile.ownerName;
+  if(profile?.shopName&&$("setupShopName"))$("setupShopName").value=profile.shopName;
+}
+function finishSetup(event){
+  event.preventDefault();
+  const ownerName=$("setupOwnerName").value.trim();
+  const shopName=$("setupShopName").value.trim();
+  if(!ownerName||!shopName)return;
+  const profile={ownerName,shopName};
+  try{localStorage.setItem("voicekhata.shop.profile",JSON.stringify(profile));}
+  catch{showToast("Could not save your shop profile in this browser.");return;}
+  applyShopProfile(profile);
+  $("getStarted").classList.add("hidden");
+  document.querySelector(".app-shell").classList.remove("hidden");
+  navigate("dashboard");
+  showToast("Welcome to "+shopName+"!");
+}
+function logOutToSetup(){
+  try{localStorage.removeItem("voicekhata.shop.profile");}catch{}
+  $("accountMenu").classList.add("hidden");
+  $("setupForm").reset();
+  $("getStarted").classList.remove("hidden");
+  document.querySelector(".app-shell").classList.add("hidden");
+  applyShopProfile(null);
 }
 function setDates(){
   const now=new Date();
@@ -291,6 +328,8 @@ function setDates(){
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.view)));
 document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.go)));
+$("setupForm").addEventListener("submit",finishSetup);
+$("signOutButton").addEventListener("click",logOutToSetup);
 $("recordButton").addEventListener("click",startRecording);
 $("understandButton").addEventListener("click",understandTransaction);
 $("reviewForm").addEventListener("submit",saveTransaction);
@@ -307,12 +346,10 @@ $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal")
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
 setDates();
 loadShopProfile();
+$("profileButton").addEventListener("click",()=> $("accountMenu").classList.toggle("hidden"));
 if(!window.VoiceKhataAuth?.isSignedIn()){
   try{transactions=JSON.parse(localStorage.getItem("voicekhata.demo.transactions.v1")||"[]");}catch{transactions=[];}
   demoMode=true;
 }
 renderAll();
-document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());
-document.addEventListener("voicekhata:signed-out",()=>{transactions=[];demoMode=true;renderAll();});
-document.addEventListener("voicekhata:auth-required",()=>{transactions=[];demoMode=true;renderAll();showToast("Your session needs Google sign-in again.");});
 window.VoiceKhata={loadFromBackend,renderAll};
