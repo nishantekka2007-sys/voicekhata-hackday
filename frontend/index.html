@@ -438,8 +438,10 @@
                     <option value="cash_expense">Shop expense</option>
                   </select>
                 </div>
-                <div class="review-field"><label for="rvAmount">AMOUNT (₹)</label><input id="rvAmount" type="number" min="0" step="0.01" placeholder="e.g. 200"></div>
+                <div class="review-field"><label for="rvAmount">TOTAL BILL / TRANSACTION AMOUNT (₹)</label><input id="rvAmount" type="number" min="0" step="0.01" placeholder="e.g. 1500"></div>
+                <div class="review-field" id="rvPaidNowWrap"><label for="rvPaidNow">AMOUNT PAID NOW (₹)</label><input id="rvPaidNow" type="number" min="0" step="0.01" placeholder="e.g. 500" value="0"><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">For a new credit bill: the remaining debt is calculated automatically.</small></div>
                 <div class="review-field"><label for="rvNote">NOTE</label><input id="rvNote" placeholder="Optional note..."></div>
+                <div id="rvBalancePreview" style="padding:10px 12px;border-radius:8px;background:#f3f8f4;font-size:12px;color:#315b43">Remaining debt: ₹0</div>
               </div>
               <div class="review-actions">
                 <button class="btn-confirm" onclick="confirmAndSave()">✅ Confirm &amp; Save</button>
@@ -552,6 +554,33 @@ function showToast(msg) {
 }
 
 // ── Onboarding ────────────────────────────────────────────
+function updateReviewPaymentFields() {
+  const kind = $("rvKind")?.value || "credit_sale";
+  const wrap = $("rvPaidNowWrap");
+  const paidInput = $("rvPaidNow");
+  const amount = Number($("rvAmount")?.value || 0);
+  const paid = Number(paidInput?.value || 0);
+  if(wrap) wrap.style.display = kind === "credit_sale" ? "" : "none";
+  if(kind !== "credit_sale" && paidInput) paidInput.value = "0";
+  const preview = $("rvBalancePreview");
+  if(preview) {
+    if(kind !== "credit_sale") {
+      preview.textContent = "Payment received and shop expenses are saved as separate transactions.";
+      preview.style.background = "#f3f8f4";
+    } else if(paid > amount) {
+      preview.textContent = "The amount paid cannot be greater than the total bill.";
+      preview.style.background = "#fff1f1";
+    } else {
+      preview.textContent = `Total bill: ${rupees(amount)} · Paid now: ${rupees(paid)} · Remaining debt: ${rupees(Math.max(0, amount-paid))}`;
+      preview.style.background = "#f3f8f4";
+    }
+  }
+}
+
+$("rvKind").addEventListener("change", updateReviewPaymentFields);
+$("rvAmount").addEventListener("input", updateReviewPaymentFields);
+$("rvPaidNow").addEventListener("input", updateReviewPaymentFields);
+
 $("setupForm").addEventListener("submit", e => {
   e.preventDefault();
   const owner = $("setupOwner").value.trim();
@@ -794,41 +823,42 @@ async function deleteTransaction(id) {
 function parseTransactionText(text) {
   const orig = text.trim();
   const lower = orig.toLowerCase();
+  const allAmounts = [...lower.matchAll(/(?:₹\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?))?/gi)]
+    .map(m => ({amount:parseFloat(m[1].replace(/,/g,"")),index:m.index,raw:m[0]}))
+    .filter(x => Number.isFinite(x.amount));
 
-  // Amount extraction
+  const billContext = /\b(bill|bills|total|invoice|khata|maal|samaan|items?)\b/i.test(lower);
+  const paidMatch = lower.match(/(?:paid|pays?|paying|gave|given|deposited|jama(?:\s+kiya)?|diye|diya|received)\D{0,18}(?:₹\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
+  const paidReverseMatch = lower.match(/(?:₹\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:rupees?\s*)?(?:paid|payment)/i);
   let amount = 0;
-  const amountPatterns = [
-    /₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/,
-    /([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)/i,
-    /([0-9,]+(?:\.[0-9]{1,2})?)/,
-  ];
-  for(const p of amountPatterns) {
-    const m = lower.match(p);
-    if(m) { amount = parseFloat(m[1].replace(/,/g,"")); break; }
+  let paid_now = 0;
+  let kind = "credit_sale";
+
+  if(billContext && allAmounts.length >= 2 && (paidMatch || paidReverseMatch || /\bdebt\b|\budhaar\b|\bremaining\b|\bleft\b/i.test(lower))) {
+    const paidCandidate = paidMatch ? parseFloat(paidMatch[1].replace(/,/g,"")) :
+      paidReverseMatch ? parseFloat(paidReverseMatch[1].replace(/,/g,"")) : 0;
+    const likelyTotal = allAmounts.find(x => x.amount >= paidCandidate && x.amount !== 0);
+    amount = likelyTotal ? likelyTotal.amount : allAmounts[0].amount;
+    paid_now = Math.min(paidCandidate, amount);
+    kind = "credit_sale";
+  } else {
+    amount = allAmounts.length ? allAmounts[0].amount : 0;
+    const paymentWords = /\b(diye|diya|deta|dia|paid|payment|returned|wapas|collected|mila|ne\s+diye|ne\s+diya|settled|repaid|jama)\b/i;
+    const expenseWords = /\b(kharcha|kharche|expense|shop\s+expense|bijli|rent|purchase|shopkeeper|electricity|kharid)\b/i;
+    if(paymentWords.test(lower)) kind = "payment_received";
+    if(expenseWords.test(lower)) kind = "cash_expense";
   }
 
-  // Kind detection
-  const paymentWords = /\b(diye|diya|deta|dia|paid|payment|returned|wapas|collected|mila|ne\s+diye|ne\s+diya|settled|repaid|jama)\b/i;
-  const expenseWords = /\b(kharcha|kharche|expense|shop\s+expense|bijli|rent|purchase|shopkeeper|bill|electricity|kharid)\b/i;
-  let kind = "credit_sale";
-  if(paymentWords.test(lower)) kind = "payment_received";
-  if(expenseWords.test(lower)) kind = "cash_expense";
-
-  // Customer extraction
   let ct = orig;
-  // remove amount
   ct = ct.replace(/₹\s*[0-9,]+(?:\.[0-9]{1,2})?/g, " ");
   ct = ct.replace(/[0-9,]+(?:\.[0-9]{1,2})?\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)?/gi, " ");
-  // remove filler words
-  ct = ct.replace(/\b(ne|ko|se|ka|ki|ke|liye|liya|diye|diya|deta|dia|paid|payment|credit|udhaar|udhar|took|gave|give|taken|on|for|to|from|the|a|an|me|rupaye|rupee|wapas|returned|collected|jama|settled|repaid|kharcha|expense|bill|mila|aur|and|hai)\b/gi, " ");
+  ct = ct.replace(/\b(ne|ko|se|ka|ki|ke|liye|liya|diye|diya|deta|dia|paid|payment|credit|udhaar|udhar|took|gave|give|taken|on|for|to|from|the|a|an|me|rupaye|rupee|wapas|returned|collected|jama|settled|repaid|kharcha|expense|mila|aur|and|hai|he|is|was|bill|bills|total|debt|remaining|left|paying|received|invoice)\b/gi, " ");
   ct = ct.replace(/[₹,:।!?]/g, " ").replace(/\s+/g, " ").trim();
   const words = ct.split(" ").filter(w=>w.length>1);
   const customer = words.slice(0,2).join(" ").trim() || (kind==="cash_expense" ? "Shop Expense" : "");
-
-  return { customer, kind, amount, note: orig, requires_confirmation: true };
+  return { customer, kind, amount, paid_now, note: orig, requires_confirmation: true };
 }
 
-// ── Web Speech API ────────────────────────────────────────
 // ── Local Whisper speech-to-text ───────────────────────────
 // Avoids depending on Chrome's remote speech-recognition service.
 function initSpeech() {
@@ -893,7 +923,9 @@ function showReviewForm(parsed) {
   $("rvCustomer").value = parsed.customer || "";
   $("rvKind").value = parsed.kind || "credit_sale";
   $("rvAmount").value = parsed.amount || "";
+  $("rvPaidNow").value = parsed.paid_now || 0;
   $("rvNote").value = parsed.note || "";
+  updateReviewPaymentFields();
 }
 
 function discardReview() {
@@ -906,46 +938,61 @@ async function confirmAndSave() {
   const customer = $("rvCustomer").value.trim();
   const kind = $("rvKind").value;
   const amount = Number($("rvAmount").value);
+  const paidNow = kind === "credit_sale" ? Number($("rvPaidNow").value || 0) : 0;
   const note = $("rvNote").value.trim();
   if (!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
   if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
-    showToast("Enter a positive amount with up to 2 decimal places."); $("rvAmount").focus(); return;
+    showToast("Enter a positive total amount with up to 2 decimal places."); $("rvAmount").focus(); return;
+  }
+  if (!Number.isFinite(paidNow) || paidNow < 0 || Math.round(paidNow * 100) !== paidNow * 100 || paidNow > amount) {
+    showToast("Amount paid now must be zero or more, and cannot exceed the total bill."); $("rvPaidNow").focus(); return;
   }
   const button = document.querySelector(".btn-confirm");
   if (button) button.disabled = true;
   try {
-    let txn;
+    const entries = [{customer,kind,amount,note}];
+    if(kind === "credit_sale" && paidNow > 0) {
+      entries.push({customer,kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
+    }
     if (window.VoiceKhataCloud?.signedIn()) {
-      // Never fallback to local saving if a private server write fails.
-      txn = await window.VoiceKhataCloud.request("/transactions", {
-        method:"POST", body:JSON.stringify({customer,kind,amount,note})
-      });
+      for(const entry of entries) {
+        await window.VoiceKhataCloud.request("/transactions", {
+          method:"POST", body:JSON.stringify(entry)
+        });
+      }
       await window.VoiceKhataCloud.loadLedger();
     } else {
-      txn = {id:"tx_"+Date.now(), customer, kind, amount, note, created_at:new Date().toISOString()};
+      const createdAt = new Date().toISOString();
+      const newTransactions = entries.map((entry,index) => ({
+        id:"tx_"+Date.now()+"_"+index, ...entry, created_at:createdAt
+      }));
       if (demoMode) {
         transactions = [];
         demoMode = false;
         $("demoBanner").style.display = "none";
       }
-      transactions.unshift(txn);
+      transactions.unshift(...newTransactions);
       saveTransactions();
     }
     $("reviewForm").classList.add("hidden");
     $("emptyReview").classList.add("hidden");
     $("successFlash").style.display = "block";
-    $("successDetail").textContent = `${customer} — ${kindLabels[kind]} — ${rupees(amount)}`;
+    const remaining = kind === "credit_sale" ? Math.max(0,amount-paidNow) : null;
+    $("successDetail").textContent = kind === "credit_sale"
+      ? `${customer} — Bill ${rupees(amount)} — Paid ${rupees(paidNow)} — Debt left ${rupees(remaining)}`
+      : `${customer} — ${kindLabels[kind]} — ${rupees(amount)}`;
     showToast(window.VoiceKhataCloud?.signedIn()
       ? "Saved to your private SQLite ledger!"
       : "Saved to this browser only (preview mode).");
     if (window.VoiceKhataCloud?.signedIn()) navigate("ledger");
     else { renderDashboard(); renderLedger(); renderCustomers(); }
   } catch (error) {
-    showToast("Could not save: " + error.message + ". Please retry.");
+    showToast("Could not save: " + error.message + ". Please check the ledger before retrying.");
   } finally {
     if (button) button.disabled = false;
   }
 }
+
 function recordAnother() {
   $("successFlash").style.display = "none";
   $("emptyReview").classList.remove("hidden");
