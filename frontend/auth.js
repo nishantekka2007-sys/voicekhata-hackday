@@ -92,7 +92,7 @@ const API_BASE = window.VOICEKHATA_API_BASE || (
     try {
       config = await request("/auth/config");
     } catch {
-      showAuthError("Cannot reach the backend. Start FastAPI at http://127.0.0.1:8000.");
+      showAuthError("Cannot reach the VoiceKhata API at " + API_BASE + ". Check that the backend is running and the API URL is configured.");
       return;
     }
 
