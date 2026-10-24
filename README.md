@@ -12,6 +12,8 @@ Explore the live GitHub Pages demo:
 
 The demo runs entirely in the browser – no server is required. Transactions are stored locally in `localStorage` and are **not** synced to a backend.
 
+PPT Link - https://drive.google.com/file/d/1dlB_IIb9ZWSrnAC_2Hbrsow6_Imr4BIJ/view?usp=sharing
+
 ---
 
 ## Screenshots & App Walkthrough
