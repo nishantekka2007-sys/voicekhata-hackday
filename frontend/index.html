@@ -540,6 +540,111 @@ tbody tr:hover{background:#f6faf6}
 @media(max-width:600px){.topbar{gap:7px;padding:0 9px}.vk-global-search{height:38px;min-width:0;padding:0 8px}.vk-global-search input{font-size:10px}.vk-global-search kbd,.vk-calendar,.today-label{display:none}.content{padding:0 7px 12px!important}.page-head{padding:18px!important}#view-dashboard .page-head{min-height:205px;padding:21px!important}#view-voice .page-head{min-height:200px;padding:20px!important}#view-voice .page-head:before{left:0;background-position:68% center}#view-voice .page-head:after{background:linear-gradient(90deg,#063d2c 0%,rgba(6,61,44,.94) 26%,rgba(6,61,44,.72) 65%,rgba(6,61,44,.2) 100%)}#view-voice .page-head>div:after{font-size:9px;line-height:1.6}#view-voice #manualEntryForm .review-fields{grid-template-columns:1fr 1fr!important}#view-voice #manualEntryForm .review-field:first-child,#view-voice #manualEntryForm .review-field:nth-child(2),#view-voice #manualEntryForm .review-field:last-child{grid-column:1/-1}.metric-grid{gap:7px}.metric-card{min-height:120px;padding:12px!important}.metric-label{font-size:8px!important}.metric-value{font-size:23px!important}.metric-foot{font-size:9px!important}.panel{padding:13px!important}#view-voice .vk-entry-rail{grid-template-columns:1fr}.vk-tip-card{grid-column:auto}.topbar-right{display:none!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
+
+/* ===== Judge-demo polish: stronger real-shop photography + refined depth ===== */
+#view-dashboard .page-head{
+  background:#073d2d!important;
+  box-shadow:0 16px 34px rgba(9,51,35,.12)!important;
+}
+#view-dashboard .page-head:before{
+  inset:0 0 0 30%;
+  background-image:url('https://static.wixstatic.com/media/d1df5e_82eae25a83474e8c90819571140c6c17~mv2.png/v1/fill/w_1600,h_900,al_c,q_90,enc_auto/d1df5e_82eae25a83474e8c90819571140c6c17~mv2.png');
+  background-position:center 47%;
+  background-size:cover;
+  opacity:1;
+  filter:saturate(1.12) contrast(1.04);
+  animation:vk-photo-drift 24s ease-in-out infinite alternate;
+}
+#view-dashboard .page-head:after{
+  background:
+    linear-gradient(90deg,#063d2c 0%,rgba(6,61,44,.98) 27%,rgba(6,61,44,.86) 43%,rgba(6,61,44,.43) 62%,rgba(6,61,44,.06) 100%),
+    linear-gradient(0deg,rgba(4,29,20,.24),transparent 50%);
+}
+#view-dashboard .page-head h1{max-width:650px;text-shadow:0 2px 22px rgba(0,0,0,.12)}
+#view-dashboard .page-head .btn-primary{
+  border:1px solid rgba(255,255,255,.2)!important;
+  box-shadow:0 10px 26px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.2)!important;
+  transition:transform .22s ease,box-shadow .22s ease!important;
+}
+#view-dashboard .page-head .btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(0,0,0,.2)!important}
+#view-voice .page-head{
+  box-shadow:0 16px 34px rgba(9,51,35,.12)!important;
+}
+#view-voice .page-head:before{
+  inset:0 0 0 28%;
+  background-image:url('https://alamnotes.com/assets/images/hero-kirana-store.png');
+  background-position:center 42%;
+  background-size:cover;
+  opacity:1;
+  filter:saturate(1.12) contrast(1.04);
+  animation:vk-photo-drift 26s ease-in-out infinite alternate;
+}
+#view-voice .page-head:after{
+  background:
+    linear-gradient(90deg,#063d2c 0%,rgba(6,61,44,.98) 25%,rgba(6,61,44,.87) 43%,rgba(6,61,44,.43) 62%,rgba(6,61,44,.04) 100%),
+    linear-gradient(0deg,rgba(4,29,20,.22),transparent 60%);
+}
+#view-voice .page-head>div:after{
+  background:rgba(255,255,255,.94);
+  border:1px solid rgba(255,255,255,.7);
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+  backdrop-filter:blur(10px);
+}
+.metric-card{
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease!important;
+}
+.metric-card:hover{
+  transform:translateY(-3px);
+  border-color:#d4e4d8!important;
+  box-shadow:0 12px 26px rgba(28,62,42,.08)!important;
+}
+#view-dashboard>.panel[style*="margin-bottom:16px"]{
+  box-shadow:0 7px 24px rgba(28,62,42,.025)!important;
+}
+#view-dashboard .content-grid .panel{
+  box-shadow:0 7px 24px rgba(28,62,42,.025)!important;
+  transition:border-color .2s ease,box-shadow .2s ease!important;
+}
+#view-dashboard .content-grid .panel:hover{
+  border-color:#dce8df!important;
+  box-shadow:0 10px 28px rgba(28,62,42,.055)!important;
+}
+.vk-rail-card,.vk-tip-card{
+  box-shadow:0 7px 22px rgba(28,62,42,.025);
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.vk-rail-card:hover,.vk-tip-card:hover{
+  transform:translateY(-2px);
+  border-color:#d8e8dc;
+  box-shadow:0 10px 24px rgba(28,62,42,.06);
+}
+#view-voice .vk-entry-main>.panel,
+#view-voice .voice-card,
+#view-voice .review-card{
+  box-shadow:0 7px 22px rgba(28,62,42,.035)!important;
+}
+#view-voice .mic-btn{
+  box-shadow:0 0 0 8px #e0f7eb,0 12px 28px rgba(8,123,85,.23)!important;
+  transition:transform .2s ease,box-shadow .2s ease!important;
+}
+#view-voice .mic-btn:hover{transform:translateY(-2px) scale(1.025)}
+.sidebar .nav-btn.active{box-shadow:inset 3px 0 #087b55,0 5px 14px rgba(8,123,85,.045)}
+.shop-badge{transition:transform .2s ease,border-color .2s ease}
+.shop-badge:hover{transform:translateY(-1px);border-color:#d4e7da}
+.nav-list:after{
+  background-image:
+    linear-gradient(180deg,rgba(245,249,237,.98) 0%,rgba(245,249,237,.9) 38%,rgba(245,249,237,.03) 100%),
+    url('https://static.wixstatic.com/media/d1df5e_82eae25a83474e8c90819571140c6c17~mv2.png/v1/fill/w_900,h_600,al_c,q_85,enc_auto/d1df5e_82eae25a83474e8c90819571140c6c17~mv2.png');
+  background-position:center,center 66%;
+}
+@media(max-width:980px){
+  #view-dashboard .page-head:before{inset:0 0 0 12%;background-position:center}
+  #view-voice .page-head:before{inset:0;background-position:68% center}
+  #view-dashboard .page-head:after{background:linear-gradient(90deg,#063d2c 0%,rgba(6,61,44,.94) 38%,rgba(6,61,44,.55) 75%,rgba(6,61,44,.22) 100%)}
+  #view-voice .page-head:after{background:linear-gradient(90deg,#063d2c 0%,rgba(6,61,44,.92) 35%,rgba(6,61,44,.58) 78%,rgba(6,61,44,.2) 100%)}
+}
+@media(prefers-reduced-motion:reduce){#view-dashboard .page-head:before,#view-voice .page-head:before{animation:none!important}}
+
 </style>
 </head>
 <body>
