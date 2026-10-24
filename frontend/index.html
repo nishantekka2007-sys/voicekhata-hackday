@@ -874,7 +874,7 @@ function renderLedger() {
   $("ledgerCount").textContent = `${filtered.length} transaction${filtered.length!==1?"s":""} shown${rangeLabel} · dates and times are recorded automatically`;
   $("ledgerRows").innerHTML = filtered.length ? filtered.map((t,i) => `
     <tr>
-      <td style="padding-left:20px"><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}</strong></div></div></td>
+      <td style="padding-left:20px"><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}${(t.customer_code || (typeof t.customer_id === "number" ? "CUS-" + String(t.customer_id).padStart(6,"0") : "")) ? " · " + esc(t.customer_code || ("CUS-" + String(t.customer_id).padStart(6,"0"))) : ""}</strong></div></div></td>
       <td><span class="type-pill ${kindClass(t.kind)}">${kindLabels[t.kind]}</span></td>
       <td style="font-size:11px;color:var(--muted);white-space:nowrap">${dateTime(t.created_at)}</td>
       <td style="font-size:11px;color:var(--muted);max-width:180px">${esc(t.note||"—")}</td>
