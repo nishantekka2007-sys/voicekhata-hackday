@@ -224,6 +224,19 @@ def create_transaction(body: TransactionCreate, user: dict = Depends(authenticat
     return _public_transaction(row)
 
 
+@app.delete("/api/transactions/{transaction_id}")
+def delete_transaction(transaction_id: int, user: dict = Depends(authenticated_user)):
+    """Delete only a transaction owned by the authenticated user."""
+    with db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM transactions WHERE id=? AND user_id=?",
+            (transaction_id, user["id"]),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Transaction not found.")
+    return {"deleted": True, "id": transaction_id}
+
+
 @app.get("/api/summary")
 def get_summary(user: dict = Depends(authenticated_user)):
     with db() as conn:
