@@ -78,6 +78,14 @@ Use the working demo with *fictional* customers and balances. Avoid real financi
 
 The public GitHub Pages URL is **not a Google-authenticated service** by itself. It provides a usable **on-device guest ledger** without a sign-in window. Google login and private SQLite syncing require a separately deployed HTTPS FastAPI API, a valid Google OAuth web client with `https://nishantekka2007-sys.github.io` as an authorized JavaScript origin, correctly configured CORS and the backend URL in `frontend/config.js`. We do not pretend local/browser-only data is cross-device synced.
 
+## Start portal and Hindi voice fix (October 2026)
+
+The first screen now offers a **local shop workspace portal**. New shops enter owner name, shop name and a 6–10 digit device PIN. An existing shop profile is preserved and can add a device PIN without deleting its ledger. Returning users can unlock their device-local workspace. This is a **convenience lock, not secure authentication or encryption**: all browser-local transactions remain readable by anyone with browser storage access. Do not treat the PIN as protection for sensitive customer data. For authenticated multi-device storage, separately host FastAPI with configured Google OAuth.
+
+Hindi voice now defaults to **Local Whisper**, avoiding Chrome's remote Web Speech network dependency. The first use **still needs internet** to download Transformers.js and the multilingual model; the browser can cache them. Hindi/Hinglish first attempts quantized Whisper Base, then falls back to multilingual Tiny if the larger model fails. Recognition is not guaranteed and errors may still occur when the CDN is unreachable, the cache is cleared, or the device lacks sufficient memory. Review all recognized names and money values before saving; typing is always available.
+
+The alternate Browser speech mode may use remote speech services and can return a network error even when other websites work.
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
