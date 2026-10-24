@@ -1,0 +1,25 @@
+# Render Blueprint for the full-stack VoiceKhata service.
+# The persistent disk keeps SQLite data across redeploys; this requires a paid
+# Render web service plan. GitHub Pages remains a separate static preview.
+services:
+  - type: web
+    name: voicekhata-api
+    runtime: python
+    region: singapore
+    plan: starter
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: VOICEKHATA_CORS_ORIGINS
+        value: https://nishantekka2007-sys.github.io
+      - key: VOICEKHATA_DB_PATH
+        value: /var/data/voicekhata.db
+    disk:
+      name: voicekhata-data
+      mountPath: /var/data
+      sizeGB: 1
