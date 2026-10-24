@@ -86,6 +86,13 @@ Hindi voice now defaults to **Local Whisper**, avoiding Chrome's remote Web Spee
 
 The alternate Browser speech mode may use remote speech services and can return a network error even when other websites work.
 
+## Hindi transaction parsing and multiple-entry review
+
+- Hindi, Marathi, and Hinglish conjunctions such as `और`, `आणि`, and `aur` can connect **items in one bill**. They no longer cause an automatic multiple-transactions error.
+- If a recorded sentence contains separately identifiable monetary actions (each part has an amount and transaction type), the app prepares **separate editable review drafts**. You must manually confirm and save one before the next appears.
+- If a sentence is unclear, edit the transcript or the review form; no parser result is written to the ledger until you press **Confirm & Save**. Verify all customer names, identifiers, and rupee values.
+- The review form retains the existing credit-bill, partial-payment, customer-ID, and balance checks.
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
