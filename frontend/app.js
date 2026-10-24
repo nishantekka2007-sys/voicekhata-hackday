@@ -168,8 +168,6 @@ async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
   if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
-  $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
-  if(!text){showToast("Type a transaction first.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Preparing draft…";
   let parsed;
   const selectedLanguage=$("languageSelect").value;
@@ -179,9 +177,9 @@ async function understandTransaction(){
     parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language:$("languageSelect").value})});
     parsed=normalizeTransaction(parsed);
   }catch(error){
-    parsed=parseSimpleText(text);
-    showToast(error.message + " Carefully review the draft.");
-  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
+    showToast((error.message||"Could not understand this transaction.")+" Nothing was saved. Check the backend connection or edit the transcript.");
+    return;
+  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Prepare draft <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
   $("reviewProduct").value=parsed.product||parsed.item||"";
@@ -205,7 +203,6 @@ function openManualEntry(){
   $("reviewMessage").textContent="Manual entry: fill in the details, verify them, then confirm to save.";
   $("reviewCustomer").focus();
 }
-function updateLeftAmount(){const due=Number($("reviewAmount").value||0),paid=Number($("reviewPaidAmount").value||0);$("reviewLeftAmount").value=Math.max(0,due-paid).toFixed(2);}
 async function saveTransaction(event){
   event.preventDefault();
   const due=Number($("reviewAmount").value), paid=Number($("reviewPaidAmount").value||0), left=Number((due-paid).toFixed(2));
@@ -367,8 +364,6 @@ function setDates(){
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.view)));
 document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.go)));
-$("setupForm").addEventListener("submit",finishSetup);
-$("signOutButton").addEventListener("click",logOutToSetup);
 document.querySelectorAll("[data-manual-entry]").forEach(button=>button.addEventListener("click",openManualEntry));
 $("recordButton").addEventListener("click",startRecording);
 $("understandButton").addEventListener("click",understandTransaction);
