@@ -1178,20 +1178,19 @@ async function confirmAndSave() {
   try {
     let accountId = customerId;
     let savedCustomer = customer;
+    let generatedCustomerCode = "";
     if(kind === "credit_sale" && !selectedAccount) {
       if(window.VoiceKhataCloud?.signedIn()) {
         const created = await window.VoiceKhataCloud.request("/customers", {method:"POST",body:JSON.stringify({display_name:typedName,identifier})});
         accountId = created.id;
-        accountCode = created.customer_code;
+        generatedCustomerCode = created.customer_code;
         savedCustomer = created.display_name;
-        entries[0].customer_code = accountCode;
-        if(entries[1]) entries[1].customer_code = accountCode;
       } else {
         accountId = "local-CUS-" + Date.now();
         savedCustomer = typedName;
       }
     }
-    let accountCode = selectedAccount?.customer_code || "";
+    let accountCode = selectedAccount?.customer_code || generatedCustomerCode;
     if(kind === "credit_sale" && !selectedAccount && !window.VoiceKhataCloud?.signedIn()) {
       accountCode = "CUS-L" + String(Date.now()).slice(-8);
     }
