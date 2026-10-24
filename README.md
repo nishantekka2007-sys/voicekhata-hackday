@@ -4,12 +4,15 @@
 
 VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and shop expenses through a simple ledger with a review-before-save workflow.
 
+**Live prototype:** [Open VoiceKhata on GitHub Pages](https://nishantekka2007-sys.github.io/voicekhata-hackday/).
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
 - Searchable transaction history
 - Customer balance summaries
 - Manual transaction entry with confirmation before saving
+- Browser-based voice-to-text entry (Hindi, English, and Marathi) with editable transaction drafts
 - Google Identity Services sign-in foundation
 - FastAPI backend with SQLite and user-scoped transactions
 - API health and authentication tests
@@ -22,12 +25,30 @@ VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and
 - Charts: Chart.js
 - Authentication: Google Identity Services
 
-## Current limitations
+## Prototype behavior and limitations
 
-- Google OAuth must be configured before private ledger actions can be used.
-- Voice recording UI exists, but speech-to-text is not connected in this branch.
-- Transaction parsing is a deterministic baseline, not a Gemma/Ollama integration. Always verify the extracted name, amount and transaction type.
-- This is a hackathon MVP, not a production financial service. Use HTTPS, review session handling, and back up the database before entering real customer data.
+- The GitHub Pages prototype is a browser-only demo. Shop details and saved demo transactions are stored in that browser's `localStorage`; they are not synced to the backend or across devices.
+- Voice entry uses the browser's Web Speech API. The prototype offers Hindi, English, and Marathi. Use a compatible browser such as Chrome or Edge, allow microphone access, and keep an internet connection available; speech-recognition support and accuracy depend on the browser and its service.
+- The transaction parser is a deterministic baseline, not a Gemma/Ollama integration. It prepares an editable draft; check the customer, amount, and transaction type before confirming.
+- The FastAPI/SQLite API is a separate backend foundation. GitHub Pages currently serves the browser demo and does not connect that demo to the backend. The backend's private endpoints require Google OAuth and environment configuration.
+- This is a hackathon MVP, not a production financial service. Do not enter real customer data until authentication, backend integration, security, and backups have been reviewed.
+
+## Try the voice prototype
+
+1. Open the [live demo](https://nishantekka2007-sys.github.io/voicekhata-hackday/) in Chrome or Edge.
+2. Enter the shop owner's name and shop name, then open **Voice Entry**.
+3. Select Hindi, English, or Marathi. Tap the microphone and allow access when prompted.
+4. Speak a transaction, then tap the microphone again to stop. Review the transcribed text and choose **Understand Transaction**.
+5. Verify or edit the suggested fields, confirm the transaction, and check the ledger. The saved demo data remains in that browser.
+
+For a local frontend demo, open a terminal in the repository and run:
+
+```bash
+cd frontend
+python3 -m http.server 5500
+```
+
+Then open http://localhost:5500. Microphone access works on `localhost` and HTTPS when supported by the browser.
 
 ## Run locally
 
