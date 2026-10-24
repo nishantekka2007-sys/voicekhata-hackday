@@ -28,7 +28,7 @@ VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and
 ## Prototype behavior and limitations
 
 - The GitHub Pages prototype is a browser-only demo. Shop details and saved demo transactions are stored in that browser's `localStorage`; they are not synced to the backend or across devices.
-- Voice entry uses the browser's Web Speech API. The prototype offers Hindi, English, and Marathi. Use a compatible browser such as Chrome or Edge, allow microphone access, and keep an internet connection available; speech-recognition support and accuracy depend on the browser and its service.
+- Voice entry uses the browser's Web Speech API. The prototype offers Hindi, English, and Marathi. In recent Chrome versions, it attempts on-device recognition when a language pack is available and can prompt for a one-time download; English may use the US English on-device pack. Otherwise it falls back to the browser's online speech service, which can fail separately from normal browsing. Allow microphone access and use a compatible browser. Recognition support and accuracy depend on the browser and language pack.
 - The transaction parser is a deterministic baseline, not a Gemma/Ollama integration. It prepares an editable draft; check the customer, amount, and transaction type before confirming.
 - The FastAPI/SQLite API is a separate backend foundation. GitHub Pages currently serves the browser demo and does not connect that demo to the backend. The backend's private endpoints require Google OAuth and environment configuration.
 - This is a hackathon MVP, not a production financial service. Do not enter real customer data until authentication, backend integration, security, and backups have been reviewed.
