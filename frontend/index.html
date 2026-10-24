@@ -967,7 +967,7 @@ function renderCustomers() {
     return `<div class="customer-card" style="display:block">
       <div style="display:flex;align-items:center;gap:10px">
         <span class="av ${toneClass(i)}" style="width:38px;height:38px;border-radius:10px;font-size:13px">${esc(initials(b.customer))}</span>
-        <div class="customer-info"><strong>${esc(b.customer)}</strong><small>${b.customer_code ? "Customer ID: " + esc(b.customer_code) + " · " : ""}Last activity: ${dateTime(b.lastActivity)}</small></div>
+        <div class="customer-info"><strong>${esc(b.customer)}${b.customer_code ? " · " + esc(b.customer_code) : ""}</strong><small>Last activity: ${dateTime(b.lastActivity)}</small></div>
         ${badge}
       </div>
       <div class="customer-money">
