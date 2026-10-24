@@ -285,6 +285,7 @@
       <button class="nav-btn" data-view="ledger" onclick="navigate('ledger')"><span class="nav-icon">▤</span> Khata ledger</button>
       <button class="nav-btn" data-view="voice" onclick="navigate('voice')"><span class="nav-icon">◉</span> Voice entry <span class="new-pill">NEW</span></button>
       <button class="nav-btn" data-view="customers" onclick="navigate('customers')"><span class="nav-icon">♙</span> Customers</button>
+      <button class="nav-btn" data-view="due-payments" onclick="navigate('due-payments')"><span class="nav-icon">₹</span> Due Payments</button>
     </nav>
     <div class="sidebar-foot">
       <div class="profile-row">
@@ -462,6 +463,28 @@
       </div>
 
       <!-- ── Customers view ── -->
+      <div id="view-due-payments" class="hidden">
+        <div class="page-head">
+          <div><p class="eyebrow">OUTSTANDING KHATA</p><h1>Due Payments</h1><p style="color:var(--muted);margin-top:6px">Record money collected later against the correct customer's existing due.</p></div>
+        </div>
+        <div class="content-grid" style="grid-template-columns:minmax(0,1fr) minmax(260px,1fr);margin-bottom:18px">
+          <div class="panel">
+            <div class="panel-head"><h2>Receive a due payment</h2></div>
+            <div class="review-fields" style="display:grid;gap:14px">
+              <div class="review-field"><label for="dueCustomerSelect">SELECT CUSTOMER ACCOUNT</label><select id="dueCustomerSelect" class="search-input" style="width:100%;min-height:42px"><option value="">Choose customer with outstanding due</option></select><small style="display:block;color:var(--muted);font-size:11px;margin-top:5px">Customer identifiers are included to distinguish people with the same name.</small></div>
+              <div id="dueCustomerBalance" style="padding:12px;border-radius:8px;background:#f3f8f4;color:#315b43">Select a customer to view their outstanding balance.</div>
+              <div class="review-field"><label for="duePaymentAmount">AMOUNT RECEIVED NOW (₹)</label><input id="duePaymentAmount" class="search-input" type="number" min="0.01" step="0.01" placeholder="e.g. 500" style="width:100%"></div>
+              <div class="review-field"><label for="duePaymentNote">NOTE (OPTIONAL)</label><input id="duePaymentNote" class="search-input" placeholder="e.g. Cash repayment" style="width:100%"></div>
+              <button class="btn-primary" style="width:auto;padding:12px 18px" onclick="recordDuePayment()">✓ Record Repayment</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Customers with pending dues</h2><span id="dueCustomerCount" style="font-size:11px;color:var(--muted)">0 customers</span></div>
+            <div id="dueCustomerList" style="display:grid;gap:10px"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="view-customers" class="hidden">
         <div class="page-head">
           <div><p class="eyebrow">CUSTOMER ACCOUNTS</p><h1>Customers</h1></div>
@@ -654,11 +677,12 @@ function navigate(view) {
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll("[id^='view-']").forEach(v => v.classList.add("hidden"));
   $("view-" + view).classList.remove("hidden");
-  const breadcrumbMap = {dashboard:"Overview",ledger:"Khata Ledger",voice:"Voice Entry",customers:"Customers"};
+  const breadcrumbMap = {dashboard:"Overview",ledger:"Khata Ledger",voice:"Voice Entry",customers:"Customers","due-payments":"Due Payments"};
   $("breadcrumb").innerHTML = `<strong>${breadcrumbMap[view]||view}</strong>`;
   if(view === "dashboard") renderDashboard();
   if(view === "ledger") renderLedger();
   if(view === "customers") renderCustomers();
+  if(view === "due-payments") renderDuePayments();
   if(window.innerWidth < 800) $("sidebar").classList.remove("open");
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -801,6 +825,73 @@ function renderLedger() {
 }
 
 // ── Customers ─────────────────────────────────────────────
+function renderDuePayments() {
+  const due = customerSummaries().filter(c => c.balance > 0).sort((a,b) => b.balance-a.balance);
+  const select = $("dueCustomerSelect");
+  const previous = select?.value || "";
+  if(select) {
+    select.innerHTML = '<option value="">Choose customer with outstanding due</option>' + due.map(c =>
+      '<option value="' + esc(c.customer) + '">' + esc(c.customer) + ' — due ' + esc(rupees(c.balance)) + '</option>'
+    ).join("");
+    if(due.some(c => c.customer === previous)) select.value = previous;
+  }
+  $("dueCustomerCount").textContent = due.length + (due.length === 1 ? " customer" : " customers");
+  $("dueCustomerList").innerHTML = due.length ? due.map(c =>
+    '<button type="button" onclick="selectDueCustomer(\'' + esc(c.customer).replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\')" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer"><span><strong style="display:block;font-size:12px;color:var(--ink)">' + esc(c.customer) + '</strong><small style="color:var(--muted)">Open customer account</small></span><strong style="color:#a33333;white-space:nowrap">' + rupees(c.balance) + '</strong></button>'
+  ).join("") : '<p style="color:var(--muted);font-size:12px;padding:12px 0">No outstanding dues. All customer accounts are settled.</p>';
+  updateDuePaymentBalance();
+}
+
+function selectDueCustomer(customer) {
+  $("dueCustomerSelect").value = customer;
+  updateDuePaymentBalance();
+  $("duePaymentAmount").focus();
+}
+
+function updateDuePaymentBalance() {
+  const customer = customerSummaries().find(c => c.customer === $("dueCustomerSelect")?.value);
+  const preview = $("dueCustomerBalance");
+  if(!preview) return;
+  preview.textContent = customer ? customer.customer + " currently owes " + rupees(customer.balance) + ". Repayment cannot exceed this amount." : "Select a customer to view their outstanding balance.";
+}
+
+$("dueCustomerSelect").addEventListener("change", updateDuePaymentBalance);
+
+async function recordDuePayment() {
+  const customer = $("dueCustomerSelect").value;
+  const amount = Number($("duePaymentAmount").value);
+  const note = $("duePaymentNote").value.trim() || "Due repayment";
+  const account = customerSummaries().find(c => c.customer === customer);
+  if(!account || account.balance <= 0) { showToast("Choose a customer who has an outstanding due."); return; }
+  if(!Number.isFinite(amount) || amount <= 0 || Math.round(amount*100)/100 !== amount) { showToast("Enter a valid repayment amount."); $("duePaymentAmount").focus(); return; }
+  if(amount > account.balance) { showToast("Payment cannot exceed this customer's due of " + rupees(account.balance) + "."); $("duePaymentAmount").focus(); return; }
+  const button = document.querySelector("#view-due-payments .btn-primary");
+  if(button) button.disabled = true;
+  try {
+    const entry = {customer,kind:"payment_received",amount,note};
+    if(window.VoiceKhataCloud?.signedIn()) {
+      await window.VoiceKhataCloud.request("/transactions",{method:"POST",body:JSON.stringify(entry)});
+      await window.VoiceKhataCloud.loadLedger();
+    } else {
+      const createdAt = new Date().toISOString();
+      transactions.unshift({id:"tx_"+Date.now()+"_due",...entry,created_at:createdAt});
+      saveTransactions();
+    }
+    $("duePaymentAmount").value = "";
+    $("duePaymentNote").value = "";
+    renderDuePayments();
+    renderDashboard();
+    renderLedger();
+    renderCustomers();
+    const updated = customerSummaries().find(c => c.customer === customer);
+    showToast("Repayment recorded. " + customer + " now owes " + rupees(updated?.balance || 0) + ".");
+  } catch(error) {
+    showToast("Could not record repayment: " + error.message + ". Check the ledger before retrying.");
+  } finally {
+    if(button) button.disabled = false;
+  }
+}
+
 function renderCustomers() {
   const q = ($("custSearch")?.value||"").trim().toLocaleLowerCase();
   const summaries = customerSummaries().filter(b => b.customer.toLocaleLowerCase().includes(q));
