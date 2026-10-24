@@ -42,7 +42,7 @@ Return either an array or an object with a `transactions` array. Each item shoul
 
 Request: `{"text":"Ramesh took 2 kg rice worth 500 rupees on credit","language":"auto"}`
 
-Return structured fields: `customer`, `kind`, `amount`, `note`. Supported kinds are `credit_sale`, `payment_received`, and `cash_expense`. This route should call Gemma 4 but must not save the transaction.
+Return structured fields: `customer`, `kind`, `amount`, `note`. Supported kinds are `credit_sale`, `payment_received`, and `cash_expense`. The frontend sends `language` plus `input_language` (which may be `mixed`). Support English, Hindi, Bengali, and Hindi-English mixed speech/text. This route should call Gemma 4 but must not save the transaction. If extraction is unclear, return a validation error rather than guessing or saving.
 
 ### `POST /api/transactions`
 
@@ -52,7 +52,7 @@ This route saves a transaction only after the frontend's explicit confirmation. 
 
 ### `POST /api/voice/transcribe`
 
-Multipart form-data with `file` (audio file) and optional `language`. Return `{"text":"recognized words here"}`. The backend can use faster-whisper for transcription.
+Multipart form-data with `file` (audio file) and optional `language`. Return `{"text":"recognized words here","language":"hi"}` (language is optional). The backend can use faster-whisper for transcription. Accept `auto`, `en`, `hi`, and `bn`; `mixed` is sent as `auto` so Hinglish can be detected instead of forcing one language.
 
 ## Financial rules
 
@@ -66,6 +66,6 @@ Multipart form-data with `file` (audio file) and optional `language`. Return `{"
 ## Current limitations
 
 - Sample data is included for UI development and is not a real shop ledger.
-- The frontend's lightweight fallback parser is only for preview and may misread names, amounts, or transaction types. Always verify the review form.
+- The frontend does not silently fall back to a simplistic parser when the AI parse endpoint fails; it shows an error and saves nothing. Always verify the review form.
 - Voice transcription requires a running backend endpoint and microphone permission.
 - Chart values are sample visualization data until a summary endpoint is agreed upon.
