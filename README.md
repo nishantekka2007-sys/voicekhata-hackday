@@ -8,6 +8,8 @@ VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and
 
 ## Frontend and backend integration (October 2026)
 
+**Deployment setup:** See [DEPLOYMENT.md](DEPLOYMENT.md) and the [Render Blueprint](render.yaml) for the HTTPS API, Google OAuth, CORS, and persistent SQLite configuration. GitHub Pages will remain browser-only until the hosted API URL and OAuth settings are supplied.
+
 All earlier feature branches and pull requests are already ancestors of `main`. The combined site now supports two **explicit modes**:
 
 - **Public GitHub Pages preview:** Works without a server, uses local Whisper for browser voice input and stores demo transactions only in that browser. It does **not** sync financial data.

@@ -1,12 +1,35 @@
-/* Public, non-secret client configuration.
- * When served by FastAPI, the API is on the same origin.
- * When hosted by GitHub Pages, enter your *deployed HTTPS backend URL* below.
- * GitHub Pages alone cannot host Python or SQLite. */
-window.VOICEKHATA_API_BASE = window.VOICEKHATA_API_BASE ?? (
-  window.location.hostname.endsWith(".github.io")
-    ? ""  // Preview-only until an HTTPS backend is deployed
-    : (["localhost", "127.0.0.1"].includes(window.location.hostname) &&
-       window.location.port === "5500")
-      ? `${window.location.protocol}//${window.location.hostname}:8000/api`
-      : "/api"
-);
+/* Public client configuration. Never put secrets in this file.
+ *
+ * GitHub Pages is static hosting; it cannot run FastAPI or SQLite. Once the
+ * backend is deployed, set the exact HTTPS API URL below (ending in /api).
+ * Example: "https://voicekhata-api.onrender.com/api"
+ *
+ * Local development:
+ *   - FastAPI serves the frontend and API together at http://127.0.0.1:8000
+ *   - Live Server at localhost:5500 talks to FastAPI on port 8000.
+ */
+(() => {
+  const explicitlyConfigured = String(window.VOICEKHATA_API_BASE || "").trim();
+  const host = window.location.hostname;
+  const local = ["localhost", "127.0.0.1"].includes(host);
+  const pages = host.endsWith(".github.io");
+
+  if (explicitlyConfigured) {
+    window.VOICEKHATA_API_BASE = explicitlyConfigured.replace(/\/+$/, "");
+    return;
+  }
+
+  if (pages) {
+    // Intentionally empty until a real hosted HTTPS API URL is configured.
+    window.VOICEKHATA_API_BASE = "";
+    return;
+  }
+
+  if (local && window.location.port === "5500") {
+    window.VOICEKHATA_API_BASE = `${window.location.protocol}//${host}:8000/api`;
+    return;
+  }
+
+  // When served by FastAPI/Render, the website and API share an origin.
+  window.VOICEKHATA_API_BASE = "/api";
+})();

@@ -56,3 +56,21 @@ def test_full_stack_frontend_is_served_by_api():
         assert client.get("/cloud.js").status_code == 200
         assert client.get("/config.js").status_code == 200
         assert client.get("/api/transactions").status_code == 401
+
+
+def test_github_pages_preflight_allows_authenticated_delete():
+    """The Pages origin must be allowed to call the API, including delete requests."""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/transactions/1",
+            headers={
+                "Origin": "https://nishantekka2007-sys.github.io",
+                "Access-Control-Request-Method": "DELETE",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "https://nishantekka2007-sys.github.io"
+        assert "DELETE" in response.headers.get("access-control-allow-methods", "")
