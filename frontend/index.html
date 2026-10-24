@@ -906,7 +906,7 @@ async function confirmAndSave() {
   const amount = Number($("rvAmount").value);
   const note = $("rvNote").value.trim();
   if (!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
-  if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
+  if (!Number.isFinite(amount) || amount <= 0 || Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
     showToast("Enter a positive amount with up to 2 decimal places."); $("rvAmount").focus(); return;
   }
   const button = document.querySelector(".btn-confirm");
