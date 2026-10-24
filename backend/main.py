@@ -1,14 +1,10 @@
-"""VoiceKhata FastAPI backend: SQLite ledger and Google OAuth authentication.
-
-Google OAuth is optional in local development. Configure GOOGLE_CLIENT_ID to enable
-the Google Identity Services sign-in button in the frontend. Never collect Gmail passwords.
-"""
+"""VoiceKhata FastAPI API with SQLite and Google OAuth."""
 from __future__ import annotations
 
 import os
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -24,12 +20,12 @@ FRONTEND_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "VOICEKHATA_CORS_ORIGINS",
-        "http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000",
+        "http://localhost:5500,http://127.0.0.1:5500",
     ).split(",")
     if origin.strip()
 ]
 
-app = FastAPI(title="VoiceKhata API", version="0.2.0", description="Voice-first digital khata API")
+app = FastAPI(title="VoiceKhata API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS,
@@ -154,7 +150,6 @@ def _upsert_user(payload: dict) -> dict:
 
 
 def authenticated_user(authorization: str | None = Header(default=None)) -> dict:
-    """Resolve a verified Google identity token; tokens are never stored in SQLite."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Sign in with Google to continue.")
     token = authorization.removeprefix("Bearer ").strip()
@@ -162,7 +157,15 @@ def authenticated_user(authorization: str | None = Header(default=None)) -> dict
         raise HTTPException(status_code=401, detail="Missing access credential.")
     return _upsert_user(_verify_google_token(token))
 
-def public_transaction(row: sqlite3.Row | dict) -> dict:
+
+def _profile(user: dict) -> dict:
+    return {
+        "id": user["id"], "email": user["email"], "name": user["name"],
+        "picture": user["picture"], "created_at": user["created_at"],
+    }
+
+
+def _public_transaction(row: sqlite3.Row | dict) -> dict:
     item = dict(row)
     item["amount"] = item.pop("amount_paise") / 100
     return item
@@ -181,14 +184,7 @@ def auth_config():
 
 @app.post("/api/auth/google")
 def google_login(body: GoogleCredential):
-    """Verify a Google Identity Services ID token and return the profile."""
     return _profile(_upsert_user(_verify_google_token(body.credential)))
-
-def _profile(user: dict) -> dict:
-    return {
-        "id": user["id"], "email": user["email"], "name": user["name"],
-        "picture": user["picture"], "created_at": user["created_at"],
-    }
 
 
 @app.get("/api/auth/me")
@@ -206,7 +202,7 @@ def get_transactions(
             "SELECT * FROM transactions WHERE user_id=? ORDER BY created_at DESC, id DESC LIMIT ?",
             (user["id"], limit),
         ).fetchall()
-    return {"transactions": [public_transaction(row) for row in rows]}
+    return {"transactions": [_public_transaction(row) for row in rows]}
 
 
 @app.post("/api/transactions", status_code=201)
@@ -224,7 +220,7 @@ def create_transaction(body: TransactionCreate, user: dict = Depends(authenticat
             (user["id"], customer, body.kind, amount_paise, body.note.strip(), utc_now()),
         )
         row = conn.execute("SELECT * FROM transactions WHERE id=?", (cursor.lastrowid,)).fetchone()
-    return public_transaction(row)
+    return _public_transaction(row)
 
 
 @app.get("/api/summary")
@@ -234,7 +230,7 @@ def get_summary(user: dict = Depends(authenticated_user)):
             "SELECT * FROM transactions WHERE user_id=? ORDER BY created_at DESC",
             (user["id"],),
         ).fetchall()
-    transactions = [public_transaction(row) for row in rows]
+    transactions = [_public_transaction(row) for row in rows]
     balances: dict[str, float] = {}
     today = datetime.now(timezone.utc).date().isoformat()
     collected_today = credit_today = 0.0
@@ -248,12 +244,8 @@ def get_summary(user: dict = Depends(authenticated_user)):
                 collected_today += item["amount"]
             elif item["kind"] == "credit_sale":
                 credit_today += item["amount"]
-    credit_given = [
-        item for item in transactions if item["kind"] == "credit_sale"
-    ]
-    payments = [
-        item for item in transactions if item["kind"] == "payment_received"
-    ]
+    credit_rows = [x for x in transactions if x["kind"] == "credit_sale"]
+    payment_rows = [x for x in transactions if x["kind"] == "payment_received"]
     return {
         "total_due": round(sum(max(0.0, amount) for amount in balances.values()), 2),
         "collected_today": round(collected_today, 2),
@@ -263,40 +255,51 @@ def get_summary(user: dict = Depends(authenticated_user)):
             {"customer": name, "balance": round(balance, 2)}
             for name, balance in sorted(balances.items(), key=lambda entry: entry[0].casefold())
         ],
-        "daily_flow": _daily_flow(credit_given, payments),
+        "daily_flow": _daily_flow(credit_rows, payment_rows),
     }
 
 
 def _daily_flow(credit_rows: list[dict], payment_rows: list[dict]) -> list[dict]:
-    from datetime import timedelta
-    dates = [datetime.now(timezone.utc).date() - timedelta(days=offset) for offset in range(6, -1, -1)]
-    result = []
-    for day in dates:
-        key = day.isoformat()
-        result.append({
-            "date": key,
-            "credit": round(sum(x["amount"] for x in credit_rows if x["created_at"].startswith(key)), 2),
-            "payments": round(sum(x["amount"] for x in payment_rows if x["created_at"].startswith(key)), 2),
-        })
-    return result
+    today = datetime.now(timezone.utc).date()
+    dates = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+    return [
+        {
+            "date": day.isoformat(),
+            "credit": round(sum(x["amount"] for x in credit_rows if x["created_at"].startswith(day.isoformat())), 2),
+            "payments": round(sum(x["amount"] for x in payment_rows if x["created_at"].startswith(day.isoformat())), 2),
+        }
+        for day in dates
+    ]
 
 
 @app.post("/api/transactions/parse")
 def parse_transaction(body: TransactionParse, user: dict = Depends(authenticated_user)):
-    """Conservative fallback parser. Returns a draft only; it never inserts a row."""
+    """Conservative parser. Returns a draft only; it never inserts a row."""
     import re
     text = body.text.strip()
-    amount_match = re.search(r"(?:₹|rs\.?\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?:\s*(?:rupees?|rs\.?))?", text, re.I)
+    amount_match = re.search(
+        r"(?:₹|rs\.?\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?:\s*(?:rupees?|rs\.?))?",
+        text, re.I,
+    )
     amount = float(amount_match.group(1).replace(",", "")) if amount_match else 0.0
     lowered = text.casefold()
-    kind: Kind = "payment_received" if re.search(r"\b(paid|payment|repaid|returned|collected)\b", lowered) else (
-        "cash_expense" if re.search(r"\b(expense|electricity bill|rent|shop purchase)\b", lowered) else "credit_sale"
+    kind: Kind = "payment_received" if re.search(
+        r"\b(paid|payment|repaid|returned|collected)\b", lowered
+    ) else (
+        "cash_expense" if re.search(r"\b(expense|electricity bill|rent|shop purchase)\b", lowered)
+        else "credit_sale"
     )
     customer_text = text
     if amount_match:
         customer_text = customer_text.replace(amount_match.group(0), " ")
-    customer_text = re.sub(r"\b(on credit|as credit|credit|worth of|worth|rupees?|paid|payment|gave me|repaid|returned|collected|took|bought|for|to|from|the|me|and)\b", " ", customer_text, flags=re.I)
+    customer_text = re.sub(
+        r"\b(on credit|as credit|credit|worth of|worth|rupees?|paid|payment|gave me|repaid|returned|collected|took|bought|for|to|from|the|me|and)\b",
+        " ", customer_text, flags=re.I,
+    )
     customer_text = re.sub(r"[₹,:]", " ", customer_text)
     customer_text = re.sub(r"\s+", " ", customer_text).strip()
     customer = " ".join(customer_text.split()[:2]).title()
-    return {"customer": customer, "kind": kind, "amount": amount, "note": text, "requires_confirmation": True}
+    return {
+        "customer": customer, "kind": kind, "amount": amount, "note": text,
+        "requires_confirmation": True,
+    }
