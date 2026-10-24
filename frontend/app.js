@@ -268,7 +268,6 @@ async function startRecording(){
       $("recordButton").setAttribute("aria-label","Start recording");
     };
     recognition.start();
-    $("recordButton").onclick=()=>{try{recognition.stop();}catch{}};
   }catch(error){
     window.voiceKhataRecognition=null;
     showToast("Could not start speech recognition. Check microphone permission or type the transaction.");
