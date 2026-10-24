@@ -378,6 +378,25 @@
         <div class="page-head">
           <div><p class="eyebrow">RECORD TRANSACTION</p><h1>Voice Entry</h1></div>
         </div>
+        <div class="panel" style="margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div><h2 style="font-size:16px">Manual Entry</h2><p style="color:var(--muted);font-size:12px;margin-top:4px">Use this form when voice recognition is inaccurate. The microphone option remains available below.</p></div>
+            <button class="btn-primary" type="button" onclick="toggleManualEntry()" id="manualEntryToggle" style="width:auto;padding:10px 16px">＋ Add manually</button>
+          </div>
+          <div id="manualEntryForm" class="hidden" style="margin-top:18px">
+            <div class="review-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+              <div class="review-field"><label for="manualKind">TRANSACTION TYPE</label><select id="manualKind" class="search-input" style="width:100%;min-height:42px"><option value="credit_sale">Credit given (Udhaar)</option><option value="payment_received">Payment received</option><option value="cash_expense">Shop expense</option></select></div>
+              <div class="review-field"><label for="manualCustomerId">CUSTOMER ID (EXISTING CUSTOMER)</label><input id="manualCustomerId" class="search-input" placeholder="Enter ID first if existing" autocomplete="off" style="width:100%"><small id="manualCustomerMatch" style="display:block;color:var(--muted);font-size:11px;margin-top:4px">For an existing customer, enter their ID first.</small></div>
+              <div class="review-field" id="manualCustomerNameWrap"><label for="manualCustomerName">CUSTOMER NAME</label><input id="manualCustomerName" class="search-input" placeholder="Enter customer name" style="width:100%"></div>
+              <div class="review-field" id="manualCustomerIdentifierWrap"><label for="manualCustomerIdentifier">IDENTIFY NEW CUSTOMER</label><input id="manualCustomerIdentifier" class="search-input" placeholder="Phone / village / house detail" style="width:100%"></div>
+              <div class="review-field"><label for="manualAmount">AMOUNT (₹)</label><input id="manualAmount" class="search-input" type="number" min="0.01" step="0.01" placeholder="e.g. 500" style="width:100%"></div>
+              <div class="review-field" id="manualPaidNowWrap"><label for="manualPaidNow">PAID NOW (₹, FOR CREDIT BILL)</label><input id="manualPaidNow" class="search-input" type="number" min="0" step="0.01" value="0" style="width:100%"></div>
+              <div class="review-field"><label for="manualNote">NOTE (OPTIONAL)</label><input id="manualNote" class="search-input" placeholder="e.g. Grocery bill" style="width:100%"></div>
+            </div>
+            <p id="manualEntryMessage" style="font-size:12px;color:var(--muted);margin:12px 0"></p>
+            <button class="btn-confirm" type="button" onclick="saveManualEntry()">Save Manual Entry</button>
+          </div>
+        </div>
         <div class="voice-layout">
 
           <!-- Left: Record -->
@@ -1090,6 +1109,102 @@ function clearVoice() {
   $("transcriptBox").value = "";
   $("transcriptBox").className = "";
   discardReview();
+}
+
+// ── Manual transaction entry ─────────────────────────────
+function toggleManualEntry() {
+  const form = $("manualEntryForm");
+  const opening = form.classList.contains("hidden");
+  form.classList.toggle("hidden");
+  $("manualEntryToggle").textContent = opening ? "− Hide manual entry" : "＋ Add manually";
+}
+function resolveManualCustomer() {
+  const raw = $("manualCustomerId").value.trim().toUpperCase();
+  const message = $("manualCustomerMatch");
+  if(!raw) {
+    message.textContent = "For an existing customer, enter their ID first.";
+    message.style.color = "var(--muted)";
+    return null;
+  }
+  const account = customerSummaries().find(c => c.customer_id != null && (c.customer_code || ("CUS-" + String(c.customer_id).padStart(6,"0"))).toUpperCase() === raw);
+  if(!account) {
+    message.textContent = "Customer ID not found. Check the ID.";
+    message.style.color = "#a33333";
+    return null;
+  }
+  message.textContent = "Verified: " + accountLabel(account) + " · Outstanding: " + rupees(account.balance);
+  message.style.color = "#236451";
+  $("manualCustomerName").value = account.customer;
+  $("manualCustomerName").readOnly = true;
+  $("manualCustomerIdentifier").value = account.identifier || "";
+  return account;
+}
+$("manualCustomerId").addEventListener("input", () => {
+  if(!$("manualCustomerId").value.trim()) $("manualCustomerName").readOnly = false;
+  const account = resolveManualCustomer();
+  const kind = $("manualKind").value;
+  if(account && kind === "payment_received" && account.balance <= 0) {
+    $("manualCustomerMatch").textContent = accountLabel(account) + " has no outstanding due.";
+    $("manualCustomerMatch").style.color = "#a33333";
+  }
+});
+$("manualKind").addEventListener("change", () => {
+  const kind = $("manualKind").value;
+  $("manualPaidNowWrap").style.display = kind === "credit_sale" ? "" : "none";
+  $("manualCustomerIdentifierWrap").style.display = kind === "credit_sale" && !$("manualCustomerId").value.trim() ? "" : "none";
+  if(kind === "payment_received") $("manualPaidNow").value = "0";
+});
+async function saveManualEntry() {
+  const kind = $("manualKind").value;
+  const rawId = $("manualCustomerId").value.trim().toUpperCase();
+  let account = rawId ? resolveManualCustomer() : null;
+  const name = $("manualCustomerName").value.trim();
+  const identifier = $("manualCustomerIdentifier").value.trim();
+  const amount = Number($("manualAmount").value);
+  const paidNow = kind === "credit_sale" ? Number($("manualPaidNow").value || 0) : 0;
+  const note = $("manualNote").value.trim();
+  if(rawId && !account) { showToast("Enter a valid customer ID, or clear it to create a new customer."); $("manualCustomerId").focus(); return; }
+  if(kind !== "cash_expense" && !account && !name) { showToast("Enter the customer name."); $("manualCustomerName").focus(); return; }
+  if(kind === "credit_sale" && !account && !identifier) { showToast("Add a detail to distinguish this new customer."); $("manualCustomerIdentifier").focus(); return; }
+  if(kind === "payment_received" && (!account || account.balance <= 0)) { showToast("For repayment, enter the existing customer's ID first and verify their due."); $("manualCustomerId").focus(); return; }
+  if(!Number.isFinite(amount) || amount <= 0 || Math.round(amount*100)/100 !== amount) { showToast("Enter a valid amount with up to two decimal places."); $("manualAmount").focus(); return; }
+  if(kind === "payment_received" && amount > account.balance) { showToast("Payment cannot exceed the outstanding balance of " + rupees(account.balance) + "."); $("manualAmount").focus(); return; }
+  if(!Number.isFinite(paidNow) || paidNow < 0 || paidNow > amount || Math.round(paidNow*100)/100 !== paidNow) { showToast("Paid-now amount must be between zero and the bill total."); $("manualPaidNow").focus(); return; }
+  const button = document.querySelector("#manualEntryForm .btn-confirm");
+  if(button) button.disabled = true;
+  try {
+    let customerId = account?.customer_id ?? null;
+    let customerCode = account?.customer_code || "";
+    let customerName = account?.customer || name || "Shop expense";
+    if(kind === "credit_sale" && !account) {
+      if(window.VoiceKhataCloud?.signedIn()) {
+        const created = await window.VoiceKhataCloud.request("/customers",{method:"POST",body:JSON.stringify({display_name:name,identifier})});
+        customerId = created.id; customerCode = created.customer_code; customerName = created.display_name;
+      } else {
+        customerId = "local-CUS-" + Date.now();
+        customerCode = "CUS-L" + String(Date.now()).slice(-8);
+      }
+    }
+    const entries = [{customer:customerName,customer_id:customerId,customer_code:customerCode,customer_identifier:account?.identifier || identifier,kind,amount,note}];
+    if(kind === "credit_sale" && paidNow > 0) entries.push({...entries[0],kind:"payment_received",amount:paidNow,note:note ? "Payment against bill: " + note : "Payment against bill"});
+    if(window.VoiceKhataCloud?.signedIn()) {
+      for(const entry of entries) await window.VoiceKhataCloud.request("/transactions",{method:"POST",body:JSON.stringify(entry)});
+      await window.VoiceKhataCloud.loadLedger();
+    } else {
+      const createdAt = new Date().toISOString();
+      transactions.unshift(...entries.map((entry,index)=>({id:"tx_manual_"+Date.now()+"_"+index,...entry,created_at:createdAt})));
+      if(demoMode) { transactions = transactions.filter(t=>!String(t.id).startsWith("demo_")); demoMode=false; $("demoBanner").style.display="none"; }
+      saveTransactions();
+    }
+    $("manualEntryMessage").textContent = "Saved successfully" + (kind === "credit_sale" && customerCode ? " · Customer ID: " + customerCode : "") + ".";
+    $("manualEntryMessage").style.color = "#236451";
+    $("manualCustomerId").value = ""; $("manualCustomerName").value = ""; $("manualCustomerName").readOnly = false;
+    $("manualCustomerIdentifier").value = ""; $("manualAmount").value = ""; $("manualPaidNow").value = "0"; $("manualNote").value = "";
+    renderDashboard(); renderLedger(); renderCustomers(); renderDuePayments();
+    showToast("Manual transaction saved.");
+  } catch(error) {
+    showToast("Could not save manual entry: " + error.message + ". Nothing was confirmed saved.");
+  } finally { if(button) button.disabled = false; }
 }
 
 // ── Parse & Review ────────────────────────────────────────
