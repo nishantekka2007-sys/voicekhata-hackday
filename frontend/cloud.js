@@ -64,8 +64,9 @@
     const value = await request("/transactions");
     const rows = value.transactions || [];
     transactions = rows.map(row => ({
-      id: row.id, customer: row.customer, kind: row.kind,
-      amount: Number(row.amount), note: row.note || "",
+      id: row.id, customer: row.customer, customer_id: row.customer_id ?? null,
+      customer_code: row.customer_code || "", customer_identifier: row.customer_identifier || "",
+      kind: row.kind, amount: Number(row.amount), note: row.note || "",
       created_at: row.created_at
     }));
     demoMode = false;
