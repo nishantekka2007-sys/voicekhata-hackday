@@ -35,6 +35,7 @@ jobs:
           fs.writeFileSync("/tmp/voicekhata-inline.js", scripts.join("\n;\n"));
           NODE
           node --check /tmp/voicekhata-inline.js
+          node --check frontend/whisper-stt.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
