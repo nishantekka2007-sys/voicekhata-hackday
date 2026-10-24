@@ -469,6 +469,7 @@ let chartInstance = null;
 let toastTimer = null;
 let recognition = null;
 let isRecognizing = false;
+let isPreparingSpeech = false;
 let currentView = "dashboard";
 
 function loadTransactions() {
@@ -700,7 +701,7 @@ function initSpeech() {
     $("sttNotSupported").style.display = "";
     $("micBtn").style.opacity = "0.4";
     $("micBtn").title = "Speech recognition not supported. Use Chrome or Edge.";
-    $("micBtn").onclick = () => showToast("⚠️ Speech recognition needs Chrome or Edge browser.");
+    $("micBtn").onclick = () => showToast("Live speech-to-text needs a compatible browser. You can type the transaction instead.");
     return;
   }
 
@@ -716,8 +717,10 @@ function initSpeech() {
     finalTranscript = "";
     $("micBtn").classList.add("recording");
     $("micBtn").textContent = "⏹";
-    $("micStatus").textContent = "LISTENING...";
-    $("micHint").textContent = "Speak clearly — tap mic again to stop";
+    $("micStatus").textContent = recognition.processLocally === true ? "LISTENING ON DEVICE..." : "LISTENING...";
+    $("micHint").textContent = recognition.processLocally === true
+      ? "Private on-device recognition. Tap mic again to stop."
+      : "Speak clearly — tap mic again to stop";
     $("transcriptBox").value = "";
     $("transcriptBox").className = "interim";
     $("transcriptBox").placeholder = "Listening...";
@@ -742,11 +745,11 @@ function initSpeech() {
     $("micBtn").classList.remove("recording");
     $("micBtn").textContent = "🎙️";
     $("micStatus").textContent = "TAP TO START";
-    $("micHint").textContent = "Hold and speak your transaction clearly";
+    $("micHint").textContent = "Tap the microphone, speak, then tap it again to stop.";
     $("transcriptBox").className = "";
     $("transcriptBox").placeholder = "Your speech will appear here... or type manually.";
     if($("transcriptBox").value.trim()) {
-      showToast("✅ Speech captured! Tap 'Understand Transaction' to parse it.");
+      showToast("Speech captured. Choose 'Understand Transaction' to prepare a draft.");
     }
   };
 
@@ -755,34 +758,116 @@ function initSpeech() {
     $("micBtn").classList.remove("recording");
     $("micBtn").textContent = "🎙️";
     $("micStatus").textContent = "TAP TO START";
-    const msgs = {
-      "not-allowed": "❌ Microphone permission denied. Allow microphone access for this site.",
-      "service-not-allowed": "❌ Browser speech recognition is blocked for this site.",
-      "no-speech": "🔇 No speech detected. Tap the microphone and speak after it starts listening.",
-      "audio-capture": "🎙️ No working microphone was detected.",
-      "network": "🌐 Speech recognition needs a working internet connection. Check your connection.",
+    const messages = {
+      "not-allowed": "Microphone access is blocked. Allow microphone permission for this site in Chrome settings.",
+      "service-not-allowed": "This browser has blocked its speech-recognition service.",
+      "no-speech": "No speech detected. Tap the microphone and start speaking after it listens.",
+      "audio-capture": "No working microphone was detected. Check your Mac's input device.",
+      "network": "Chrome could not connect to its speech-recognition service. Your internet can still be working. Try the on-device language option in the latest Chrome, or retry later.",
+      "language-not-supported": "This language is not available for on-device recognition on this browser. Try Hindi or English, or use online recognition when its service is reachable.",
       "aborted": "Recording stopped."
     };
-    if(e.error !== "aborted") showToast(msgs[e.error] || "Speech error: " + e.error);
+    console.warn("VoiceKhata speech recognition error:", e.error, e.message || "");
+    if(e.error !== "aborted") showToast(messages[e.error] || ("Speech recognition error: " + e.error));
   };
 }
 
-function toggleRecording() {
+async function toggleRecording() {
   if(!recognition) {
-    showToast("⚠️ Live speech-to-text needs Chrome or Edge. You can type the transaction instead.");
+    showToast("Live speech-to-text is not supported by this browser. You can type the transaction instead.");
     return;
   }
+  if(isPreparingSpeech) return;
   if(isRecognizing) {
     try { recognition.stop(); }
     catch(e) { showToast("Could not stop recording: " + e.message); }
     return;
   }
 
-  recognition.lang = $("langSelect").value;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const selectedLanguage = $("langSelect").value;
+  const micBtn = $("micBtn");
+  let localLanguage = null;
+  let installedNow = false;
+
+  // Modern Chrome can recognize speech fully on-device. Prefer that path to
+  // avoid the separate cloud speech service that causes misleading network errors.
+  if("processLocally" in recognition &&
+     typeof SpeechRecognition.available === "function" &&
+     typeof SpeechRecognition.install === "function") {
+    const localCandidates = selectedLanguage === "en-IN"
+      ? ["en-IN", "en-US"]
+      : [selectedLanguage];
+
+    isPreparingSpeech = true;
+    micBtn.disabled = true;
+    $("micStatus").textContent = "CHECKING SPEECH MODEL...";
+    $("micHint").textContent = "Checking whether this language can be recognized on this device.";
+
+    try {
+      for(const lang of localCandidates) {
+        let availability;
+        try {
+          availability = await SpeechRecognition.available({
+            langs: [lang],
+            processLocally: true
+          });
+        } catch(checkError) {
+          console.warn("Could not check local speech pack:", checkError);
+          break;
+        }
+
+        if(availability === "available") {
+          localLanguage = lang;
+          break;
+        }
+
+        if(availability === "downloadable" || availability === "downloading") {
+          $("micStatus").textContent = "PREPARING LANGUAGE MODEL...";
+          $("micHint").textContent = "First use may need a one-time language pack download.";
+          showToast("Preparing on-device speech recognition for " + lang + ". This may take a moment.");
+
+          try {
+            const installed = await SpeechRecognition.install({
+              langs: [lang],
+              processLocally: true
+            });
+            if(installed) {
+              installedNow = true;
+              localLanguage = lang;
+              break;
+            }
+          } catch(installError) {
+            console.warn("Could not install local speech pack:", installError);
+          }
+        }
+      }
+    } finally {
+      isPreparingSpeech = false;
+      micBtn.disabled = false;
+      $("micStatus").textContent = "TAP TO START";
+      $("micHint").textContent = "Tap the microphone, speak, then tap it again to stop.";
+    }
+
+    if(installedNow) {
+      showToast("On-device language pack is ready. Tap the microphone again to start recording.");
+      $("micStatus").textContent = "LANGUAGE READY";
+      $("micHint").textContent = "The language pack is installed. Tap the microphone again to speak.";
+      return;
+    }
+  }
+
   try {
+    if(localLanguage) {
+      recognition.lang = localLanguage;
+      recognition.processLocally = true;
+    } else {
+      recognition.lang = selectedLanguage;
+      if("processLocally" in recognition) recognition.processLocally = false;
+    }
     recognition.start();
   } catch(e) {
-    showToast("Could not start mic: " + e.message + ". Check microphone permission and try again.");
+    showToast("Could not start speech recognition: " + e.message + ". Check microphone permission and try again.");
   }
 }
 
