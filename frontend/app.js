@@ -158,13 +158,15 @@ async function understandTransaction(){
   if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
   let parsed;
+  const selectedLanguage=$("languageSelect").value;
+  const language=selectedLanguage==="mixed"?"auto":selectedLanguage;
   try{
-    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before creating a transaction.");
-    parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language:$("languageSelect").value})});
+    parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language,input_language:selectedLanguage})});
+    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("AI did not return a clear customer and positive amount. Please edit your words and try again.");
     parsed=normalizeTransaction(parsed);
   }catch(error){
-    parsed=parseSimpleText(text);
-    showToast(error.message + " Carefully review the draft.");
+    showToast((error.message||"Could not understand this transaction.")+" Nothing was saved. Check the backend connection or edit the transcript.");
+    return;
   }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
@@ -207,12 +209,17 @@ async function startRecording(){
       recordingStream?.getTracks().forEach(track=>track.stop());
       $("recordButton").classList.remove("recording");$("recordStatus").textContent="PROCESSING AUDIO";$("recordHint").textContent="Sending audio for transcription…";
       const blob=new Blob(recordedChunks,{type:mediaRecorder.mimeType||"audio/webm"});
-      const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");form.append("language",$("languageSelect").value);
+      const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");
+      const selectedLanguage=$("languageSelect").value;
+      form.append("language",selectedLanguage==="mixed"?"auto":selectedLanguage);
+      form.append("input_language",selectedLanguage);
       try{
         if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before using voice entry.");
         const result=await authRequest("/voice/transcribe",{method:"POST",body:form});
-        $("transcriptInput").value=result.text||result.transcript||"";
-        $("recordHint").textContent="Transcription ready — review the text below";
+        const transcript=result.text||result.transcript||"";
+        if(!transcript.trim()) throw new Error("The speech service returned an empty transcript.");
+        $("transcriptInput").value=transcript;
+        $("recordHint").textContent="Transcription ready — check the words, then choose Understand transaction";
         showToast("Audio transcribed. Now review the transaction details.");
       }catch(error){
         $("recordHint").textContent="Recording finished, but transcription API isn't connected yet.";
