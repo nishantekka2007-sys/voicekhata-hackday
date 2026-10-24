@@ -546,6 +546,7 @@ let recognition = null;
 let isRecognizing = false;
 let isPreparingSpeech = false;
 let currentView = "dashboard";
+let pendingVoiceEntries = [];
 
 function loadTransactions() {
   try {
@@ -1028,7 +1029,7 @@ function exportLedgerCSV() {
 // ── NLP Parser ────────────────────────────────────────────
 function parseTransactionText(text) {
   const parsed = window.VoiceKhataParser.parse(text);
-  if (parsed.error) return parsed;
+  if (parsed.error || parsed.entries) return parsed;
   // Preserve the latest main branch's split-bill feature without allowing
   // ambiguous speech to create unreviewed transactions.
   const normalized = window.VoiceKhataParser.toAsciiDigits(text);
@@ -1081,6 +1082,7 @@ function useExample(el) {
 }
 
 function clearVoice() {
+  pendingVoiceEntries = [];
   if(window.VoiceKhataWhisper) window.VoiceKhataWhisper.cancel();
   if(isRecognizing && recognition) {
     try { recognition.stop(); } catch {}
@@ -1098,7 +1100,11 @@ async function parseCurrentText() {
   if (button) { button.disabled = true; button.textContent = "Understanding…"; }
   try {
     let parsed;
-    if (window.VoiceKhataCloud?.signedIn()) {
+    const localDraft = parseTransactionText(text);
+    if (localDraft?.entries) {
+      // A multiple-entry transcript is staged for individual review, not auto-saved.
+      parsed = localDraft;
+    } else if (window.VoiceKhataCloud?.signedIn()) {
       parsed = await window.VoiceKhataCloud.request("/transactions/parse", {
         method:"POST", body:JSON.stringify({text,language:$("langSelect")?.value || "auto"})
       });
@@ -1106,7 +1112,11 @@ async function parseCurrentText() {
       parsed = parseTransactionText(text);
     }
     if (parsed?.error) throw new Error(parsed.error);
-    if (parsed) showReviewForm(parsed);
+    pendingVoiceEntries = Array.isArray(parsed?.entries) ? parsed.entries.slice(1) : [];
+    if (parsed?.entries?.length) {
+      showToast(`${parsed.entries.length} transactions detected. Review and save each separately.`);
+      showReviewForm(parsed.entries[0]);
+    } else if (parsed) showReviewForm(parsed);
   } catch (error) {
     showToast("Could not prepare transaction: " + error.message + ". Nothing was saved.");
   } finally {
@@ -1132,6 +1142,10 @@ function showReviewForm(parsed) {
 }
 
 function discardReview() {
+  if (pendingVoiceEntries.length) {
+    pendingVoiceEntries = [];
+    showToast("Review cancelled. Remaining transactions were not saved.");
+  }
   $("reviewForm").classList.add("hidden");
   $("successFlash").style.display = "none";
   $("emptyReview").classList.remove("hidden");
@@ -1181,7 +1195,7 @@ async function confirmAndSave() {
     let generatedCustomerCode = "";
     if(kind === "credit_sale" && !selectedAccount) {
       if(window.VoiceKhataCloud?.signedIn()) {
-        const created = await window.VoiceKhataCloud.request("/customers", {method:"POST",body:JSON.stringify({display_name:typedName,identifier})});
+        const created = await window.VoiceKhataCloud.request("/customers", {method:"POST",body:JSON.stringify({display_name:typedName,identifier:identity})});
         accountId = created.id;
         generatedCustomerCode = created.customer_code;
         savedCustomer = created.display_name;
@@ -1228,7 +1242,10 @@ async function confirmAndSave() {
     showToast(window.VoiceKhataCloud?.signedIn()
       ? "Saved to your private SQLite ledger!"
       : "Saved to this browser only (preview mode).");
-    if (window.VoiceKhataCloud?.signedIn()) navigate("ledger");
+    const another = document.querySelector("#successFlash .btn-primary");
+    if (another) another.textContent = pendingVoiceEntries.length
+      ? `Review next transaction (${pendingVoiceEntries.length} left) →` : "Record Another";
+    if (window.VoiceKhataCloud?.signedIn() && !pendingVoiceEntries.length) navigate("ledger");
     else { renderDashboard(); renderLedger(); renderCustomers(); }
   } catch (error) {
     showToast("Could not save: " + error.message + ". Please check the ledger before retrying.");
@@ -1239,6 +1256,11 @@ async function confirmAndSave() {
 
 function recordAnother() {
   $("successFlash").style.display = "none";
+  if (pendingVoiceEntries.length) {
+    const next = pendingVoiceEntries.shift();
+    showReviewForm(next);
+    return;
+  }
   $("emptyReview").classList.remove("hidden");
   $("transcriptBox").value = "";
   $("transcriptBox").className = "";
