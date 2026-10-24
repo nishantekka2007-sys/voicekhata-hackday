@@ -381,9 +381,9 @@
         <div class="panel" style="margin-bottom:18px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <div><h2 style="font-size:16px">Manual Entry</h2><p style="color:var(--muted);font-size:12px;margin-top:4px">Use this form when voice recognition is inaccurate. The microphone option remains available below.</p></div>
-            <button class="btn-primary" type="button" onclick="toggleManualEntry()" id="manualEntryToggle" style="width:auto;padding:10px 16px">＋ Add manually</button>
+            <button class="btn-primary" type="button" onclick="toggleManualEntry()" id="manualEntryToggle" style="width:auto;padding:10px 16px">− Hide manual entry</button>
           </div>
-          <div id="manualEntryForm" class="hidden" style="margin-top:18px">
+          <div id="manualEntryForm" style="margin-top:18px">
             <div class="review-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
               <div class="review-field"><label for="manualKind">TRANSACTION TYPE</label><select id="manualKind" class="search-input" style="width:100%;min-height:42px"><option value="credit_sale">Credit given (Udhaar)</option><option value="payment_received">Payment received</option><option value="cash_expense">Shop expense</option></select></div>
               <div class="review-field"><label for="manualCustomerId">CUSTOMER ID (EXISTING CUSTOMER)</label><input id="manualCustomerId" class="search-input" placeholder="Enter ID first if existing" autocomplete="off" style="width:100%"><small id="manualCustomerMatch" style="display:block;color:var(--muted);font-size:11px;margin-top:4px">For an existing customer, enter their ID first.</small></div>
