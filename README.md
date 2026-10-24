@@ -57,6 +57,8 @@ Test signing in, saving a transaction, reloading the browser, and confirming the
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
 - Searchable transaction history
+- Customer-wise total credit, paid amount, remaining balance, and automatic paid-in-full check mark
+- Automatic transaction date/time and delete actions with customer balances recalculated
 - Customer balance summaries
 - Manual transaction entry with confirmation before saving
 - Browser-based voice-to-text entry (Hindi, English, and Marathi) with editable transaction drafts
