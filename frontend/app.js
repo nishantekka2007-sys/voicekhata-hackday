@@ -164,7 +164,7 @@ async function understandTransaction(){
     parsed=normalizeTransaction(parsed);
   }catch(error){
     parsed=parseSimpleText(text);
-    showToast((window.VoiceKhataAuth?.isSignedIn() ? error.message : "Sign in with Google to save a transaction.") + " Carefully review the draft.");
+    showToast(error.message + " Carefully review the draft.");
   }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
