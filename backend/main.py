@@ -112,6 +112,8 @@ class TransactionParse(BaseModel):
 
 
 def _verify_google_token(token: str) -> dict:
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google login is not configured. Set GOOGLE_CLIENT_ID.")
     try:
         response = httpx.get(
             "https://oauth2.googleapis.com/tokeninfo",
@@ -123,8 +125,6 @@ def _verify_google_token(token: str) -> dict:
     except (httpx.HTTPError, ValueError):
         raise HTTPException(status_code=401, detail="Google sign-in could not be verified.") from None
 
-    if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=503, detail="Google login is not configured. Set GOOGLE_CLIENT_ID.")
     if payload.get("aud") != GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=401, detail="Google token audience does not match this app.")
     if payload.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
