@@ -376,7 +376,7 @@
           <!-- Left: Record -->
           <div class="voice-card">
             <h2>🎙️ Speak a Transaction</h2>
-            <p class="sub">Say a transaction in Hindi, English, or Marathi. Review and save it to your khata.</p>
+            <p class="sub">Say one transaction in Hindi, Hinglish, English or Marathi. You can also type it. Always check the details before saving.</p>
             <div class="lang-select-wrap">
               <label for="langSelect">LANGUAGE</label>
               <select id="langSelect">
@@ -386,6 +386,14 @@
                 <option value="auto" id="autoLangOpt">🌐 Hinglish / Auto detect</option>
               </select>
             </div>
+            <div class="lang-select-wrap" style="margin-top:10px">
+              <label for="speechEngine">SPEECH RECOGNITION</label>
+              <select id="speechEngine" aria-label="Speech recognition engine">
+                <option value="browser">Browser speech (recommended for Hindi · may use online service)</option>
+                <option value="local">Local Whisper (private · model download required)</option>
+              </select>
+              <small style="display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:6px">Browser speech is generally faster but may send audio to the browser provider. Local Whisper runs on your device after downloading its model.</small>
+            </div>
             <div class="stt-not-supported" id="sttNotSupported">
               ⚠️ <strong>Voice recognition needs Chrome or Edge.</strong><br>
               You can still type the transaction text below and use the parser.
@@ -393,7 +401,7 @@
             <div class="mic-area">
               <button class="mic-btn" id="micBtn" onclick="toggleRecording()" aria-label="Start recording">🎙️</button>
               <p class="mic-status" id="micStatus">TAP TO START</p>
-              <p class="mic-hint" id="micHint">Hold and speak your transaction clearly</p>
+              <p class="mic-hint" id="micHint">Tap to start recording; tap again to stop</p>
             </div>
             <div class="transcript-area">
               <label for="transcriptBox">TRANSCRIBED TEXT</label>
@@ -988,15 +996,23 @@ function parseTransactionText(text) {
 function initSpeech() {
   $("sttNotSupported").style.display = "none";
   $("micBtn").style.opacity = "1";
-  $("micBtn").title = "Record and transcribe using the local Whisper model";
+  $("micBtn").title = "Tap to record. Choose Browser speech or Local Whisper above.";
   $("micStatus").textContent = "TAP TO RECORD";
-  $("micHint").textContent = "Local speech-to-text. First use downloads a speech model; later use is cached.";
+  const browserSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const mode = $("speechEngine");
+  if (!browserSpeech && mode) mode.value = "local";
+  $("micHint").textContent = browserSpeech ? "Use Browser speech for Hindi; Local Whisper is available as an alternative." : "Browser speech is unavailable here. Local Whisper needs a model download; typing always works.";
+  if (mode) mode.addEventListener("change", () => {
+    $("micHint").textContent = mode.value === "browser"
+      ? "Browser recognition may use an online service. Say one clear transaction, then tap stop."
+      : "Private on-device transcription. First use downloads a multilingual model.";
+  });
 }
 
 async function toggleRecording() {
   const localSpeech = window.VoiceKhataWhisper;
   if (!localSpeech) {
-    showToast("Local speech engine is still loading. Wait a moment and tap the microphone again.");
+    showToast("Voice recording is not ready. Refresh this page or type the transaction.");
     return;
   }
   await localSpeech.toggle($("langSelect").value);

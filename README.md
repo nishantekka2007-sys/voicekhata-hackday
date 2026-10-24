@@ -65,6 +65,19 @@ Test signing in, saving a transaction, reloading the browser, and confirming the
 
 Use the working demo with *fictional* customers and balances. Avoid real financial records until authentication and production storage are properly configured.
 
+## Speech and login troubleshooting (October 2026)
+
+### Voice entry on the GitHub Pages demo
+
+- The previous Whisper loader was broken by a JavaScript comment accidentally hiding the model declaration; this has been corrected.
+- **Browser speech (default):** On Chrome/Edge, select Hindi or Hinglish, press the microphone, speak, and press it again to stop. Browser speech can rely on an online recognition service. It does **not** require a Whisper model download.
+- **Local Whisper (optional):** Select *Local Whisper* for on-device audio transcription. It downloads the open-source multilingual `whisper-tiny` model. Browser extensions, blocked CDNs, memory and device performance can still prevent a model from loading; in that case choose Browser speech or type your transaction.
+- Audio and automatic parsing can be inaccurate, especially for names and amounts. Check and correct the review form before saving. The public browser demo is not a production accounting service.
+
+### Google sign-in on GitHub Pages
+
+The public GitHub Pages URL is **not a Google-authenticated service** by itself. It provides a usable **on-device guest ledger** without a sign-in window. Google login and private SQLite syncing require a separately deployed HTTPS FastAPI API, a valid Google OAuth web client with `https://nishantekka2007-sys.github.io` as an authorized JavaScript origin, correctly configured CORS and the backend URL in `frontend/config.js`. We do not pretend local/browser-only data is cross-device synced.
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart

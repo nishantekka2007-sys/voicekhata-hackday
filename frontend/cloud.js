@@ -46,7 +46,9 @@
     showLogin();
     const login = document.getElementById("cloudGoogleSignIn");
     if (login) login.style.display = "";
-    showMode("Preview mode: browser-only data; sign in to use your private SQLite ledger.");
+    showMode("Using on-device mode. Entries remain private to this browser.");
+    const modeBanner = document.getElementById("accountModeBanner");
+    if (modeBanner) modeBanner.textContent = "✓ On-device mode. Your entries are not synced.";
     // The local preview is separate from private, synced records.
     transactions = loadTransactions();
     demoMode = transactions.length === 0;
@@ -70,6 +72,8 @@
     const banner = document.getElementById("demoBanner");
     if (banner) banner.style.display = "none";
     showMode("Connected: transactions are stored in your authenticated SQLite ledger.");
+    const modeBanner = document.getElementById("accountModeBanner");
+    if (modeBanner) modeBanner.textContent = "✓ Google account connected — ledger sync is enabled.";
     if (document.getElementById("app") && !document.getElementById("app").classList.contains("hidden")) navigate("dashboard");
   }
   async function onCredential(response) {
@@ -96,9 +100,15 @@
     card.style.cssText = "display:grid;gap:5px;padding:10px 0";
     const panel = document.querySelector(".sidebar-foot");
     if (!panel) return;
+    const banner = document.createElement("div");
+    banner.id = "accountModeBanner";
+    banner.setAttribute("role", "status");
+    banner.style.cssText = "padding:10px 12px;border:1px solid #d7e7db;border-radius:10px;background:#eef8f0;color:#254d38;font-size:12px;line-height:1.5;margin-bottom:12px";
+    banner.textContent = base ? "Checking Google account connection…" : "✓ Continue without login. Your khata works on this device. Google sync needs a hosted backend.";
+    panel.prepend(banner);
     panel.prepend(status, card);
     if (!base) {
-      showMode("Offline workspace: voice entry and ledger work in this browser. Google sign-in requires a deployed HTTPS API and a configured Google OAuth client.");
+      showMode("Offline workspace: your ledger is saved only in this browser. Google login and sync are unavailable until a HTTPS backend is deployed.");
       showLogin();
       return;
     }

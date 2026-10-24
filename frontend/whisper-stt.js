@@ -6,8 +6,12 @@
  * model/runtime and the browser caches them for later use.
  */
 
-const TRANSFORMERS_MODULE_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
-// Multilingual Whisper base provides better accuracy for Hindi than tiny on capable devices.\nconst WHISPER_MODEL = "onnx-community/whisper-base";
+const TRANSFORMERS_MODULE_URLS = [
+  "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
+  "https://esm.sh/@huggingface/transformers@3.8.1"
+];
+// Use the supported multilingual tiny model for reliable loading on mobile devices.
+const WHISPER_MODEL = "onnx-community/whisper-tiny";
 const TARGET_SAMPLE_RATE = 16000;
 const MAX_RECORDING_SECONDS = 25;
 
@@ -77,10 +81,13 @@ function loadTranscriber() {
     modelWarmupError = null;
     transcriberPromise = (async () => {
       if (!recording) showStatus("LOADING LOCAL SPEECH MODEL", "First use downloads the speech model. It will be cached by your browser.");
-      const transformers = await import(TRANSFORMERS_MODULE_URL);
-      if (!transformers || typeof transformers.pipeline !== "function") {
-        throw new Error("The local speech model library could not be loaded.");
+      let transformers;
+      let lastError;
+      for (const url of TRANSFORMERS_MODULE_URLS) {
+        try { transformers = await import(url); if (transformers?.pipeline) break; }
+        catch (error) { lastError = error; }
       }
+      if (!transformers?.pipeline) throw new Error("Speech library download failed: " + (lastError?.message || "CDN unavailable"));
       return transformers.pipeline(
         "automatic-speech-recognition",
         WHISPER_MODEL,
@@ -196,7 +203,7 @@ async function transcribeBlob(blob, selectedLanguage) {
     console.error("VoiceKhata local transcription failed:", error);
     const detail = modelWarmupError ? String(modelWarmupError.message || modelWarmupError) : String(error && error.message || error);
     if (/fetch|network|load|download|wasm|model/i.test(detail)) {
-      toast("Could not load the local Whisper model. Check access to jsDelivr and Hugging Face, then refresh and retry.");
+      toast("Local Whisper could not load. Select Browser speech in the recording mode selector, or type the transaction.");
     } else {
       toast("Local transcription failed: " + detail);
     }
@@ -256,7 +263,7 @@ async function startRecording(selectedLanguage) {
   setMicVisual(true);
   showStatus("RECORDING NOW", "Speak clearly. Tap the microphone again to transcribe locally. Max " + MAX_RECORDING_SECONDS + " seconds.");
   
-  // Begin downloading/loading the speech engine while the user is speaking.\n  // A loading failure is shown during transcription; users may still edit text.
+  // Begin loading the optional local speech engine while recording.
   loadTranscriber().catch((error) => {
     console.warn("Whisper model pre-load failed; it will retry after recording:", error);
   });
@@ -269,7 +276,7 @@ async function startRecording(selectedLanguage) {
   }, MAX_RECORDING_SECONDS * 1000);
 }
 
-async function toggle(selectedLanguage) {
+async function localToggle(selectedLanguage) {
   if (processing) {
     toast("Please wait for the current transcription to finish.");
     return;
@@ -295,7 +302,85 @@ async function toggle(selectedLanguage) {
   }
 }
 
+
+let browserRecognition = null;
+let browserRecording = false;
+let browserFinal = "";
+function stopBrowserSpeech() {
+  if (browserRecognition) {
+    try { browserRecognition.stop(); } catch {}
+  }
+}
+function beginBrowserSpeech(selectedLanguage) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    toast("Browser speech recognition is not supported here. Try Chrome, or select Local Whisper.");
+    showStatus("BROWSER SPEECH UNAVAILABLE", "You can type a transaction or try local Whisper.");
+    return;
+  }
+  if (browserRecording) { stopBrowserSpeech(); return; }
+  let recognition;
+  try { recognition = new SpeechRecognition(); }
+  catch (error) { toast("Browser speech could not start: " + error.message); return; }
+  browserRecognition = recognition;
+  recognition.lang = selectedLanguage === "mr-IN" ? "mr-IN" : selectedLanguage === "en-IN" ? "en-IN" : "hi-IN";
+  recognition.interimResults = true;
+  recognition.continuous = true;
+  recognition.maxAlternatives = 1;
+  const input = getElement("transcriptBox");
+  const prior = input?.value.trim() || "";
+  browserFinal = prior ? prior + " " : "";
+  recognition.onstart = () => {
+    browserRecording = true;
+    setMicVisual(true);
+    showStatus("LISTENING", "Speak in Hindi or Hinglish. Tap the mic to stop. Review the text before saving.");
+  };
+  recognition.onresult = event => {
+    let provisional = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const phrase = event.results[i][0]?.transcript || "";
+      if (event.results[i].isFinal) browserFinal += phrase + " ";
+      else provisional += phrase;
+    }
+    if (input) input.value = (browserFinal + provisional).trim();
+  };
+  recognition.onerror = event => {
+    const issue = {
+      "not-allowed": "Microphone permission denied. Allow microphone access in browser site settings.",
+      "service-not-allowed": "Browser speech service is unavailable. Select Local Whisper instead.",
+      "network": "Browser speech needs an internet connection. Try Local Whisper or type the transaction.",
+      "no-speech": "No speech detected. Speak clearly and try again.",
+      "audio-capture": "No microphone was found. Check your system microphone settings.",
+      "language-not-supported": "This browser does not support the selected language. Try Hindi or Local Whisper."
+    }[event.error] || "Voice recognition failed (" + event.error + ").";
+    toast(issue);
+    showStatus("RECORDING ERROR", issue);
+  };
+  recognition.onend = () => {
+    browserRecording = false;
+    browserRecognition = null;
+    setMicVisual(false);
+    const hasText = !!input?.value.trim();
+    if (hasText) showStatus("TRANSCRIPT READY", "Review the recognized text, then tap Understand Transaction.");
+    else showStatus("TAP TO RECORD", "No transcript captured. Try again or type your transaction.");
+  };
+  try { recognition.start(); } catch (error) {
+    browserRecognition = null;
+    browserRecording = false;
+    setMicVisual(false);
+    toast("Browser microphone could not start: " + error.message);
+  }
+}
+async function toggle(selectedLanguage) {
+  const mode = getElement("speechEngine")?.value || "browser";
+  if (browserRecording) { stopBrowserSpeech(); return; }
+  if (recording || processing) { await localToggle(selectedLanguage); return; }
+  if (mode === "browser") beginBrowserSpeech(selectedLanguage);
+  else await localToggle(selectedLanguage);
+}
+
 function cancel() {
+  if (browserRecording) stopBrowserSpeech();
   if (recording && recorder && recorder.state === "recording") {
     cancelRequested = true;
     recorder.stop();
@@ -307,7 +392,7 @@ function cancel() {
 window.VoiceKhataWhisper = {
   toggle,
   cancel,
-  get isRecording() { return recording; },
+  get isRecording() { return recording || browserRecording; },
   get isProcessing() { return processing; }
 };
 
