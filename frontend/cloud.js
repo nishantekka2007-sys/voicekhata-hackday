@@ -21,6 +21,7 @@
   }
   function showMode(message) {
     safeText("cloudStatus", message);
+    safeText("portalGoogleMessage", message);
   }
   function showLogin() {
     const host = document.getElementById("cloudAccount");
@@ -87,6 +88,7 @@
       user = result;
       showLogin();
       await loadLedger();
+      if (window.VoiceKhataPortal?.openWithGoogle) window.VoiceKhataPortal.openWithGoogle(result);
     } catch (e) {
       sessionStorage.removeItem(TOKEN_KEY); user = null; showLogin();
       showMode("Google sign-in could not be completed. Check OAuth JavaScript origins, your backend and the account used. " + e.message);
@@ -134,7 +136,9 @@
       showLogin();
       const login = document.createElement("div");
       login.id = "cloudGoogleSignIn";
-      panel.insertBefore(login, status);
+      const portalHost = document.getElementById("portalGoogleButton");
+      if (portalHost) portalHost.appendChild(login);
+      else panel.insertBefore(login, status);
       const start = () => {
         if (!window.google?.accounts?.id) {showMode("Google sign-in could not load.");return;}
         window.google.accounts.id.initialize({client_id:config.google_client_id,callback:onCredential});

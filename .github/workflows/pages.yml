@@ -41,6 +41,8 @@ jobs:
           node --check frontend/transaction-parser.js
           node frontend/transaction-parser.test.js
           node frontend/speech-login.test.js
+          node --check frontend/portal.js
+          node frontend/portal-stt.test.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:

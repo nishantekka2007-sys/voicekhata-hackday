@@ -34,6 +34,8 @@ jobs:
           node --check frontend/transaction-parser.js
           node frontend/transaction-parser.test.js
           node frontend/speech-login.test.js
+          node --check frontend/portal.js
+          node frontend/portal-stt.test.js
           node <<'NODE'
           const fs = require("node:fs");
           const html = fs.readFileSync("frontend/index.html", "utf8");
