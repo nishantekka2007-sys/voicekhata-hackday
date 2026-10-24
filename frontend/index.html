@@ -703,12 +703,17 @@ function initSpeech() {
     $("micBtn").onclick = () => showToast("⚠️ Speech recognition needs Chrome or Edge browser.");
     return;
   }
+
   recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = true;
 
+  // Keep finalized words across multiple recognition events in this recording.
+  let finalTranscript = "";
+
   recognition.onstart = () => {
     isRecognizing = true;
+    finalTranscript = "";
     $("micBtn").classList.add("recording");
     $("micBtn").textContent = "⏹";
     $("micStatus").textContent = "LISTENING...";
@@ -719,14 +724,17 @@ function initSpeech() {
   };
 
   recognition.onresult = e => {
-    let interim = "", final = "";
+    let interim = "";
     for(let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) final += t;
-      else interim += t;
+      const phrase = e.results[i][0].transcript;
+      if(e.results[i].isFinal) {
+        finalTranscript += phrase.trim() + " ";
+      } else {
+        interim += phrase;
+      }
     }
-    $("transcriptBox").value = (final || interim);
-    $("transcriptBox").className = final ? "" : "interim";
+    $("transcriptBox").value = (finalTranscript + interim).trim();
+    $("transcriptBox").className = interim ? "interim" : "";
   };
 
   recognition.onend = () => {
@@ -748,23 +756,33 @@ function initSpeech() {
     $("micBtn").textContent = "🎙️";
     $("micStatus").textContent = "TAP TO START";
     const msgs = {
-      "not-allowed": "❌ Microphone permission denied. Please allow mic access in your browser.",
-      "no-speech": "🔇 No speech detected. Please try again.",
-      "network": "🌐 Network error. Check your connection.",
+      "not-allowed": "❌ Microphone permission denied. Allow microphone access for this site.",
+      "service-not-allowed": "❌ Browser speech recognition is blocked for this site.",
+      "no-speech": "🔇 No speech detected. Tap the microphone and speak after it starts listening.",
+      "audio-capture": "🎙️ No working microphone was detected.",
+      "network": "🌐 Speech recognition needs a working internet connection. Check your connection.",
+      "aborted": "Recording stopped."
     };
-    showToast(msgs[e.error] || "Speech error: " + e.error);
+    if(e.error !== "aborted") showToast(msgs[e.error] || "Speech error: " + e.error);
   };
 }
 
 function toggleRecording() {
-  if(!recognition) { showToast("⚠️ Speech recognition needs Chrome or Edge."); return; }
+  if(!recognition) {
+    showToast("⚠️ Live speech-to-text needs Chrome or Edge. You can type the transaction instead.");
+    return;
+  }
   if(isRecognizing) {
-    recognition.stop();
-  } else {
-    const lang = $("langSelect").value;
-    recognition.lang = lang;
-    try { recognition.start(); }
-    catch(e) { showToast("Could not start mic: " + e.message); }
+    try { recognition.stop(); }
+    catch(e) { showToast("Could not stop recording: " + e.message); }
+    return;
+  }
+
+  recognition.lang = $("langSelect").value;
+  try {
+    recognition.start();
+  } catch(e) {
+    showToast("Could not start mic: " + e.message + ". Check microphone permission and try again.");
   }
 }
 
