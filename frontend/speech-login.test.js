@@ -17,3 +17,8 @@ assert.match(html, /src="cloud\.js"/);
 assert.match(login, /Continue without login/);
 assert.match(config, /\.github\.io/);
 console.log("Speech loading and guest-login source regressions passed.");
+
+assert.match(html, /id="reviewSpeechWarning"/);
+assert.match(html, /Choose transaction type after checking speech/);
+assert.match(html, /parsed\.kind \|\| ""/);
+assert.match(html, /reviewSpeechWarning/);

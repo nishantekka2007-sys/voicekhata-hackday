@@ -31,3 +31,27 @@ assert.equal(parse("Ramesh ko ₹0 udhaar").missing_fields.includes("amount"), t
 assert.equal(parse("").error, "Please speak or type a transaction.");
 assert.equal(parse("Amit ne २०० रुपये जमा किये").kind, "payment_received");
 console.log("VoiceKhata multilingual parser tests passed.");
+
+const robustExamples = [
+  ["रमेश को पाँच सौ रुपये उधार दिए", "रमेश", 500, "credit_sale"],
+  ["रमेश को पांच सौ रुपए उधार दिए", "रमेश", 500, "credit_sale"],
+  ["रमेश ने दो सौ रुपये वापस दिए", "रमेश", 200, "payment_received"],
+  ["आज रमेश को ५०० रुपये उधार दिए", "रमेश", 500, "credit_sale"],
+  ["Suresh ko 300 rupaye udhaar diya", "Suresh", 300, "credit_sale"],
+  ["Anita paid 500 rupees", "Anita", 500, "payment_received"],
+  ["रमेश को चाय और चीनी २०० रुपये उधार दिए", "रमेश", 200, "credit_sale"],
+  ["500 रुपये का खर्च", "Shop Expense", 500, "cash_expense"],
+  ["Ramesh took 150 on credit", "Ramesh", 150, "credit_sale"],
+  ["Mukesh paid 750", "Mukesh", 750, "payment_received"]
+];
+for (const [text, customer, amount, kind] of robustExamples) {
+  const draft = parse(text);
+  assert.equal(draft.customer, customer, "customer: " + text);
+  assert.equal(draft.amount, amount, "amount: " + text);
+  assert.equal(draft.kind, kind, "kind: " + text);
+  assert.deepEqual(draft.missing_fields, [], "missing fields: " + text);
+}
+assert.equal(parse("मुझे सामान मिला").missing_fields.includes("amount"), true);
+assert.equal(parse("अज्ञात बात").kind, "");
+assert.equal(parse("अज्ञात बात").amount, "");
+assert.equal(parse("अज्ञात बात").missing_fields.includes("transaction type"), true);
