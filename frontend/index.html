@@ -1,107 +1,854 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#173f35">
-  <title>VoiceKhata — Your shop, in your words</title>
+  <meta name="theme-color" content="#174b3e">
+  <title>VoiceKhata — Your Shop, In Your Words</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="auth.js" defer></script>
-  <script src="app.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--green:#174b3e;--green-2:#236451;--mint:#e8f4ed;--ink:#202b28;--muted:#7b8984;--line:#e8eeea;--canvas:#f7f9f7;--white:#fff;--red:#c0392b;--shadow:0 4px 18px rgba(30,64,50,.06)}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--canvas);color:var(--ink);font-family:"DM Sans",sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer;border:none;background:none}
+    .hidden{display:none!important}
+
+    /* ── Onboarding ── */
+    #onboarding{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 15% 10%,#e5f2e8 0,transparent 40%),var(--canvas)}
+    .ob-card{width:min(100%,440px);background:#fff;border:1px solid var(--line);border-radius:20px;padding:36px;box-shadow:0 18px 55px rgba(30,64,50,.08)}
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);margin-bottom:32px}
+    .brand-mark{width:40px;height:40px;border-radius:13px;background:var(--green);color:#fff;display:grid;place-items:center;font-family:Manrope,sans-serif;font-size:17px;font-weight:800;letter-spacing:-2px;flex:none}
+    .brand-copy{display:flex;flex-direction:column;gap:2px}
+    .brand-copy strong{font:800 18px Manrope,sans-serif;letter-spacing:-.8px}
+    .brand-copy small{font-size:8px;font-weight:700;letter-spacing:1.2px;color:#87948e}
+    .ob-h1{font:800 30px Manrope,sans-serif;letter-spacing:-1.2px;color:#24342c;margin-bottom:8px}
+    .ob-sub{font-size:13px;line-height:1.7;color:#7e8a83;margin-bottom:28px}
+    .field-label{display:block;font-size:11px;font-weight:700;letter-spacing:.5px;color:#697770;margin-bottom:6px}
+    .field-wrap{margin-bottom:14px}
+    .field-wrap input{width:100%;border:1px solid #dfe8e1;border-radius:9px;padding:12px;outline:none;font-size:13px;color:var(--ink)}
+    .field-wrap input:focus{border-color:#9cc8aa;box-shadow:0 0 0 3px rgba(156,200,170,.15)}
+    .btn-primary{width:100%;background:var(--green);color:#fff;border-radius:10px;padding:14px;font-weight:700;font-size:14px;letter-spacing:.2px;margin-top:8px;transition:background .15s}
+    .btn-primary:hover{background:var(--green-2)}
+    .ob-note{font-size:10px;line-height:1.6;color:#9aa59e;margin-top:18px}
+
+    /* ── App Shell ── */
+    #app{display:flex;min-height:100vh}
+
+    /* ── Sidebar ── */
+    .sidebar{width:248px;background:#fff;border-right:1px solid var(--line);position:fixed;inset:0 auto 0 0;z-index:20;padding:26px 17px 16px;display:flex;flex-direction:column;transition:transform .2s}
+    .sidebar .brand{padding-bottom:20px;margin-bottom:0}
+    .shop-badge{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;align-items:center;gap:9px;margin-bottom:26px}
+    .shop-av{width:35px;height:35px;border-radius:10px;background:#f6e6c9;color:#8a6331;font-weight:700;display:grid;place-items:center;font-size:13px;flex:none}
+    .shop-badge span{display:flex;flex-direction:column;gap:2px}
+    .shop-badge strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+    .shop-badge small{font-size:9px;color:var(--muted)}
+    .nav-section{font-size:9px;font-weight:700;color:#a2ada7;letter-spacing:1.2px;padding-left:10px;margin:0 0 8px}
+    .nav-list{display:grid;gap:4px}
+    .nav-btn{height:42px;border-radius:9px;display:flex;align-items:center;padding:0 12px;gap:11px;color:#697770;font-weight:600;font-size:12px;transition:background .1s}
+    .nav-btn:hover{background:#f6f8f6}
+    .nav-btn.active{background:var(--mint);color:var(--green);font-weight:700}
+    .nav-icon{font-size:16px;width:18px;text-align:center}
+    .new-pill{margin-left:auto;font-size:8px;letter-spacing:.4px;color:var(--green);background:#d6eadc;border-radius:4px;padding:3px 5px}
+    .sidebar-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:14px}
+    .profile-row{display:flex;align-items:center;gap:9px;padding:6px 4px}
+    .prof-av{width:32px;height:32px;border-radius:50%;background:#dcebe3;color:var(--green);font-size:10px;font-weight:700;display:grid;place-items:center;flex:none}
+    .profile-row span{display:flex;flex-direction:column;gap:2px}
+    .profile-row strong{font-size:11px}
+    .profile-row small{font-size:9px;color:var(--muted)}
+
+    /* ── Main Content ── */
+    .main{margin-left:248px;flex:1;min-height:100vh}
+    .topbar{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:14px;background:#fff}
+    .hamburger{display:none;font-size:22px;color:var(--muted);margin-right:4px}
+    .breadcrumb{font-size:11px;color:#8a9690}
+    .breadcrumb strong{color:#45544c}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+    .today-label{font-size:11px;color:var(--muted)}
+    .content{padding:26px 28px}
+
+    /* ── Page heading ── */
+    .page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;gap:14px}
+    .eyebrow{font-size:9px;font-weight:700;letter-spacing:1.3px;color:#84938a;margin-bottom:8px}
+    .page-head h1{font:800 clamp(24px,2.2vw,30px) Manrope,sans-serif;letter-spacing:-1px;color:#24342c}
+    .wave{font-size:18px;color:#d3a75c;vertical-align:4px}
+
+    /* ── Metric cards ── */
+    .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+    .metric-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+    .metric-label{font-size:10px;font-weight:700;letter-spacing:.6px;color:#84938a;margin-bottom:12px}
+    .metric-value{font:800 28px Manrope,sans-serif;letter-spacing:-1px;color:var(--ink);margin-bottom:6px}
+    .metric-foot{font-size:10px;color:var(--muted)}
+
+    /* ── Content grid ── */
+    .content-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr);gap:16px}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+    .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .panel-head h2{font:700 14px Manrope,sans-serif;color:var(--ink)}
+    .panel-head small{font-size:10px;color:var(--muted)}
+
+    /* ── Table ── */
+    .table-scroll{overflow-x:auto}
+    table{width:100%;border-collapse:collapse}
+    th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#84938a;text-align:left;padding:0 10px 10px}
+    td{padding:10px;border-bottom:1px solid #f3f6f3;font-size:12px;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    .person-cell{display:flex;align-items:center;gap:10px}
+    .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
+    .av.t0{background:#e8f0ee;color:#3a6b57}
+    .av.t1{background:#f0ede8;color:#6b4f3a}
+    .av.t2{background:#e8ecf0;color:#3a4f6b}
+    .av.t3{background:#f0e8f0;color:#6b3a6b}
+    .person-info strong{display:block;font-size:12px;font-weight:600}
+    .person-info small{font-size:10px;color:var(--muted)}
+    .type-pill{font-size:9px;font-weight:700;letter-spacing:.4px;border-radius:5px;padding:3px 7px;white-space:nowrap}
+    .type-credit{background:#e6f5ed;color:#1a7a48}
+    .type-payment{background:#e6edf5;color:#1a4a7a}
+    .type-expense{background:#f5ebe6;color:#7a3a1a}
+    .amount-cell{font-weight:700;font-size:13px;text-align:right}
+    .amount-cell.outgoing{color:#c0392b}
+    .status-pill{font-size:9px;color:#6a9a7e;background:#e6f2eb;border-radius:4px;padding:2px 6px}
+
+    /* ── Chart ── */
+    .chart-wrap{height:200px;position:relative}
+
+    /* ── Voice Entry ── */
+    .voice-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .voice-card,.review-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:var(--shadow)}
+    .voice-card h2{font:800 22px Manrope,sans-serif;letter-spacing:-.8px;margin-bottom:6px;color:var(--ink)}
+    .voice-card p.sub{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+    .lang-select-wrap{margin-bottom:18px}
+    .lang-select-wrap label{font-size:10px;font-weight:700;letter-spacing:.5px;color:#697770;display:block;margin-bottom:5px}
+    .lang-select-wrap select{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:12px;color:var(--ink);background:#fff;outline:none}
+    .lang-select-wrap select:focus{border-color:#9cc8aa}
+    .mic-area{display:flex;flex-direction:column;align-items:center;gap:14px;margin:10px 0 20px}
+    .mic-btn{width:88px;height:88px;border-radius:50%;background:var(--green);color:#fff;font-size:36px;display:grid;place-items:center;border:none;transition:transform .1s,background .15s;position:relative}
+    .mic-btn:hover{background:var(--green-2);transform:scale(1.04)}
+    .mic-btn.recording{background:#c0392b;animation:pulse 1.2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,.4)}50%{box-shadow:0 0 0 16px rgba(192,57,43,0)}}
+    .mic-status{font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--muted);text-align:center}
+    .mic-hint{font-size:11px;color:var(--muted);text-align:center;max-width:220px;line-height:1.5}
+    .stt-not-supported{background:#fff9ed;border:1px solid #f3e8cc;border-radius:9px;padding:12px 14px;font-size:11px;color:#8d7547;text-align:center;line-height:1.6;display:none}
+    .transcript-area{margin-bottom:14px}
+    .transcript-area label{font-size:10px;font-weight:700;letter-spacing:.5px;color:#697770;display:block;margin-bottom:5px}
+    .transcript-area textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px;font-size:13px;resize:vertical;min-height:72px;outline:none;color:var(--ink);background:#fdfffd;line-height:1.6}
+    .transcript-area textarea:focus{border-color:#9cc8aa}
+    .transcript-area textarea.interim{color:#aab8b2;font-style:italic}
+    .voice-actions{display:flex;gap:9px}
+    .btn-parse{background:var(--green);color:#fff;border-radius:9px;padding:10px 16px;font-weight:700;font-size:12px;flex:1;transition:background .15s}
+    .btn-parse:hover{background:var(--green-2)}
+    .btn-ghost{border:1px solid var(--line);border-radius:9px;padding:10px 16px;font-weight:600;font-size:12px;color:var(--muted);transition:background .1s}
+    .btn-ghost:hover{background:#f0f4f1}
+    .examples-section{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}
+    .examples-section h4{font-size:10px;font-weight:700;letter-spacing:.5px;color:#84938a;margin-bottom:10px}
+    .example-chips{display:flex;flex-wrap:wrap;gap:7px}
+    .chip{border:1px solid #d2e4d9;border-radius:20px;padding:5px 11px;font-size:11px;color:var(--green);cursor:pointer;transition:background .1s}
+    .chip:hover{background:var(--mint)}
+
+    /* ── Review Card ── */
+    .review-card h2{font:800 20px Manrope,sans-serif;letter-spacing:-.7px;margin-bottom:6px;color:var(--ink)}
+    .review-card p.sub{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+    .empty-review{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);text-align:center}
+    .empty-review .empty-icon{font-size:38px;opacity:.3}
+    .empty-review p{font-size:12px;line-height:1.6;max-width:200px}
+    .review-step-row{display:flex;gap:6px;margin-bottom:16px}
+    .review-step{font-size:8px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:4px;background:#f0f4f1;color:#84938a}
+    .review-step.active{background:var(--mint);color:var(--green)}
+    .review-fields{display:grid;gap:11px}
+    .review-field label{font-size:10px;font-weight:700;letter-spacing:.5px;color:#697770;display:block;margin-bottom:4px}
+    .review-field input,.review-field select{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;color:var(--ink);outline:none;background:#fff}
+    .review-field input:focus,.review-field select:focus{border-color:#9cc8aa;box-shadow:0 0 0 2px rgba(156,200,170,.15)}
+    .review-actions{display:flex;gap:9px;margin-top:18px}
+    .btn-confirm{background:var(--green);color:#fff;border-radius:9px;padding:12px 18px;font-weight:700;font-size:13px;flex:1;transition:background .15s}
+    .btn-confirm:hover{background:var(--green-2)}
+    .btn-discard{border:1px solid var(--line);border-radius:9px;padding:12px 14px;font-weight:600;font-size:12px;color:var(--muted)}
+    .btn-discard:hover{background:#f0f4f1}
+
+    /* ── Ledger view ── */
+    .search-bar{margin-bottom:18px}
+    .search-input{width:100%;max-width:360px;border:1px solid var(--line);border-radius:9px;padding:10px 14px;font-size:13px;outline:none;background:#fff}
+    .search-input:focus{border-color:#9cc8aa}
+    .ledger-count{font-size:10px;color:var(--muted);margin-bottom:10px}
+
+    /* ── Customers view ── */
+    .customer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:13px}
+    .customer-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+    .customer-info{flex:1;min-width:0}
+    .customer-info strong{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .customer-info small{font-size:10px;color:var(--muted)}
+    .customer-balance{text-align:right;flex:none}
+    .customer-balance strong{display:block;font-size:14px;font-weight:800;font-family:Manrope,sans-serif}
+    .customer-balance small{font-size:9px;color:var(--muted)}
+    .customer-balance.positive strong{color:#1a7a48}
+    .customer-balance.negative strong{color:var(--red)}
+    .customer-balance.zero strong{color:var(--muted)}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:22px;right:22px;z-index:100;max-width:min(380px,calc(100vw - 36px));background:#203e31;color:#fff;padding:13px 17px;border-radius:10px;box-shadow:0 8px 28px #122c202c;font-size:12px;line-height:1.5;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s}
+    .toast.show{opacity:1;transform:translateY(0)}
+
+    /* ── Success flash ── */
+    .success-flash{text-align:center;padding:28px;display:none}
+    .success-flash .sf-icon{font-size:48px;display:block;margin-bottom:12px}
+    .success-flash strong{display:block;font:700 16px Manrope,sans-serif;color:var(--green);margin-bottom:6px}
+    .success-flash p{font-size:12px;color:var(--muted);margin-bottom:18px}
+
+    /* ── Demo banner ── */
+    .demo-banner{background:#fff9ed;border:1px solid #f3e8cc;border-radius:9px;padding:10px 14px;color:#8d7547;font-size:11px;display:flex;align-items:center;gap:9px;margin-bottom:20px}
+    .demo-dot{width:7px;height:7px;background:#d9a44d;border-radius:50%;flex:none}
+    .demo-banner strong{color:#735a2d}
+
+    /* ── Responsive ── */
+    @media(max-width:1100px){
+      .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .content-grid{grid-template-columns:1fr}
+      .voice-layout{grid-template-columns:1fr}
+    }
+    @media(max-width:800px){
+      .sidebar{transform:translateX(-100%)}
+      .sidebar.open{transform:translateX(0);box-shadow:8px 0 40px #14291c18}
+      .main{margin-left:0}
+      .hamburger{display:block}
+      .content{padding:18px}
+    }
+    @media(max-width:520px){
+      .content{padding:14px}
+      .metric-grid{gap:9px}
+      .metric-card{padding:14px}
+      .metric-value{font-size:22px}
+      .page-head{flex-direction:column;align-items:flex-start}
+    }
+  </style>
 </head>
 <body>
-  <section id="getStarted" class="get-started">
-    <div class="onboarding-card">
-      <a class="brand onboarding-brand" href="#" aria-label="VoiceKhata home"><span class="brand-mark">vk</span><span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span></a>
-      <p class="eyebrow">A SIMPLE DIGITAL KHATA</p>
-      <h1>Let’s set up your shop.</h1>
-      <p class="onboarding-copy">Start with your name and shop name. Your dashboard will be ready in a moment.</p>
-      <form id="setupForm" class="setup-form">
-        <label class="field-label" for="setupOwnerName">Your name</label>
-        <input id="setupOwnerName" name="ownerName" autocomplete="name" required maxlength="80" placeholder="e.g. Nishant Ekka">
-        <label class="field-label" for="setupShopName">Shop name</label>
-        <input id="setupShopName" name="shopName" required maxlength="100" placeholder="e.g. Ekka General Store">
-        <button class="primary-button full-button" type="submit">Get started <span>→</span></button>
-      </form>
-      <p class="onboarding-footnote">This demo keeps your shop profile and entries in this browser. No Google sign-in is needed for this setup.</p>
-    </div>
-  </section>
-  <div class="app-shell hidden">
-    <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#" aria-label="VoiceKhata home">
-        <span class="brand-mark" aria-hidden="true">vk</span>
-        <span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span>
-      </a>
-      <div class="shop-switcher"><span class="shop-avatar">VK</span><span><strong id="shopNameLabel">Your shop</strong><small id="shopOwnerLabel">Set up your shop</small></span><span class="chevron">⌄</span></div>
-      <p class="nav-label">WORKSPACE</p>
-      <nav class="nav-list" aria-label="Main navigation">
-        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span>Overview</button>
-        <button class="nav-item" data-view="ledger"><span class="nav-icon">▤</span>Khata ledger</button>
-        <button class="nav-item" data-view="voice"><span class="nav-icon">◉</span>Voice entry<span class="new-pill">NEW</span></button>
-        <button class="nav-item" data-view="customers"><span class="nav-icon">♙</span>Customers</button>
-      </nav>
-      <div class="sidebar-bottom">
-        <div class="help-card"><span class="help-icon">✦</span><strong>Your digital khata</strong><p>Speak naturally. Review the details. Save with confidence.</p><button id="helpButton" class="text-button">How it works <span>↗</span></button></div>
-        <div class="profile-row" id="accountProfile"><span class="profile-avatar">VK</span><span><strong id="signedInName">Not signed in</strong><small>Google account</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
-        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Sign out</button></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ONBOARDING SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="onboarding">
+  <div class="ob-card">
+    <a class="brand" href="#" onclick="return false">
+      <span class="brand-mark">vk</span>
+      <span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span>
+    </a>
+    <p class="eyebrow">A SIMPLE DIGITAL KHATA</p>
+    <h1 class="ob-h1">Let's set up your shop.</h1>
+    <p class="ob-sub">Start with your name and shop name. Your ledger will be ready in a moment.</p>
+    <form id="setupForm">
+      <div class="field-wrap">
+        <label class="field-label" for="setupOwner">Your name</label>
+        <input id="setupOwner" required maxlength="80" placeholder="e.g. Nishant Ekka" autocomplete="name">
       </div>
-    </aside>
+      <div class="field-wrap">
+        <label class="field-label" for="setupShop">Shop name</label>
+        <input id="setupShop" required maxlength="100" placeholder="e.g. Ekka General Store">
+      </div>
+      <button class="btn-primary" type="submit">Get started →</button>
+    </form>
+    <p class="ob-note">This demo stores your shop profile and entries in this browser. No account needed.</p>
+  </div>
+</div>
 
-    <main class="main-content">
-      <header class="topbar">
-        <button id="menuButton" class="icon-button mobile-menu" aria-label="Open menu">☰</button>
-        <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumbCurrent">Overview</strong></div>
-        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="google-auth-wrap"><div id="googleSignIn" aria-label="Sign in with Google"></div><div id="signedInIdentity" class="signed-in-identity hidden"><img id="signedInImage" class="signed-in-image hidden" alt=""><span id="signedInNameTop"></span></div><p id="authMessage" class="auth-message" role="status"></p></div></div>
-      </header>
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
 
-      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Preview mode</strong> — sign in with Google to access your private ledger. Sample data is not saved.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#" onclick="return false">
+      <span class="brand-mark">vk</span>
+      <span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span>
+    </a>
+    <div class="shop-badge">
+      <span class="shop-av" id="shopAv">VK</span>
+      <span><strong id="shopNameSidebar">Your Shop</strong><small id="shopOwnerSidebar">Owner</small></span>
+    </div>
+    <p class="nav-section">WORKSPACE</p>
+    <nav class="nav-list">
+      <button class="nav-btn active" data-view="dashboard" onclick="navigate('dashboard')"><span class="nav-icon">▦</span> Overview</button>
+      <button class="nav-btn" data-view="ledger" onclick="navigate('ledger')"><span class="nav-icon">▤</span> Khata ledger</button>
+      <button class="nav-btn" data-view="voice" onclick="navigate('voice')"><span class="nav-icon">◉</span> Voice entry <span class="new-pill">NEW</span></button>
+      <button class="nav-btn" data-view="customers" onclick="navigate('customers')"><span class="nav-icon">♙</span> Customers</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="profile-row">
+        <span class="prof-av" id="profAvSidebar">VK</span>
+        <span><strong id="profNameSidebar">Shop owner</strong><small>Shop profile</small></span>
+      </div>
+    </div>
+  </aside>
 
-      <section class="view active-view" id="view-dashboard">
-        <div class="page-heading">
-          <div><p class="eyebrow"><span id="dateEyebrow"></span></p><h1>Welcome to VoiceKhata <span class="wave">✳</span></h1><p class="subheading">Your shop ledger, in your words.</p></div>
-          <button class="primary-button" data-go="voice"><span>＋</span> Add transaction</button>
+  <!-- Main content -->
+  <div class="main">
+    <div class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <span class="breadcrumb" id="breadcrumb"><strong>Overview</strong></span>
+      <div class="topbar-right">
+        <span class="today-label" id="todayLabel"></span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── Dashboard view ── -->
+      <div id="view-dashboard">
+        <div class="demo-banner" id="demoBanner">
+          <span class="demo-dot"></span>
+          <span><strong>Demo mode</strong> — Showing sample data. Use <em>Voice Entry</em> to add real transactions.</span>
+        </div>
+        <div class="page-head">
+          <div><p class="eyebrow">TODAY'S SNAPSHOT</p><h1 id="dashGreeting">Welcome <span class="wave">✳</span></h1></div>
+          <button class="btn-primary" style="width:auto;padding:10px 18px;font-size:12px" onclick="navigate('voice')">+ Voice Entry</button>
         </div>
         <div class="metric-grid">
-          <article class="metric-card"><div class="metric-top"><span class="metric-label">Total to collect</span><span class="metric-icon green-icon">₹</span></div><div class="metric-value" id="totalDue">₹0</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>from your ledger</span></div><div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-          <article class="metric-card"><div class="metric-top"><span class="metric-label">Collected today</span><span class="metric-icon lilac-icon">↙</span></div><div class="metric-value" id="collectedToday">₹0</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>today</span></div><div class="mini-bars lilac-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-          <article class="metric-card"><div class="metric-top"><span class="metric-label">Credit given today</span><span class="metric-icon peach-icon">↗</span></div><div class="metric-value" id="creditToday">₹0</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>today</span></div><div class="mini-bars peach-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-          <article class="metric-card"><div class="metric-top"><span class="metric-label">Active customers</span><span class="metric-icon blue-icon">♙</span></div><div class="metric-value" id="activeCustomers">0</div><div class="metric-foot"><span class="trend neutral">From ledger</span><span>unique customers</span></div></article>
+          <div class="metric-card"><p class="metric-label">TOTAL DUE (UDHAAR)</p><p class="metric-value" id="metTotalDue">₹0</p><p class="metric-foot">Across all customers</p></div>
+          <div class="metric-card"><p class="metric-label">COLLECTED TODAY</p><p class="metric-value" id="metCollected">₹0</p><p class="metric-foot">Payments received</p></div>
+          <div class="metric-card"><p class="metric-label">CREDIT TODAY</p><p class="metric-value" id="metCredit">₹0</p><p class="metric-foot">Udhaar given today</p></div>
+          <div class="metric-card"><p class="metric-label">ACTIVE CUSTOMERS</p><p class="metric-value" id="metCustomers">0</p><p class="metric-foot">With pending balance</p></div>
         </div>
-
         <div class="content-grid">
-          <article class="panel chart-panel"><div class="panel-heading"><div><h2>Money flow</h2><p>Track credit and collections over time</p></div><select id="chartRange" class="select-control" aria-label="Chart time range"><option value="week">This week</option><option value="month">This month</option></select></div><div class="chart-legend"><span><i class="legend-dot credit-dot"></i>Credit given</span><span><i class="legend-dot payment-dot"></i>Payments collected</span></div><div class="chart-wrap"><canvas id="moneyChart" aria-label="Credit and collection chart"></canvas></div></article>
-          <article class="panel quick-panel"><div class="panel-heading"><div><h2>Quick actions</h2><p>Keep your khata up to date</p></div></div><button class="quick-action" data-go="voice"><span class="quick-action-icon mic-action">◉</span><span><strong>Speak a transaction</strong><small>Record it in your own words</small></span><span class="action-arrow">↗</span></button><button class="quick-action" data-manual-entry><span class="quick-action-icon add-action">＋</span><span><strong>Enter transaction details</strong><small>Fill in a transaction manually</small></span><span class="action-arrow">↗</span></button><button class="quick-action" data-go="customers"><span class="quick-action-icon people-action">♙</span><span><strong>View customer balances</strong><small>See who owes what</small></span><span class="action-arrow">↗</span></button><div class="voice-tip"><span>✦</span><p><strong>Try saying:</strong> “Ramesh took ₹500 worth of rice on credit.”</p></div></article>
+          <div class="panel">
+            <div class="panel-head"><h2>Recent Transactions</h2><button style="font-size:11px;color:var(--green);font-weight:700" onclick="navigate('ledger')">View all →</button></div>
+            <div class="table-scroll"><table><thead><tr><th>Customer</th><th>Type</th><th>Date</th><th style="text-align:right">Amount</th></tr></thead><tbody id="recentRows"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No transactions yet.</td></tr></tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>7-Day Flow</h2><small>Credit vs Payments</small></div>
+            <div class="chart-wrap"><canvas id="flowChart"></canvas></div>
+          </div>
         </div>
+      </div>
 
-        <article class="panel transactions-panel"><div class="panel-heading"><div><h2>Recent transactions</h2><p>Your latest shop activity</p></div><button class="secondary-button" data-go="ledger">View all <span>→</span></button></div><div class="table-scroll"><table><thead><tr><th>PERSON / DETAILS</th><th>TYPE</th><th>DATE & TIME</th><th class="amount-heading">AMOUNT</th><th>STATUS</th></tr></thead><tbody id="recentRows"></tbody></table></div></article>
-        <footer class="footer"><span>Made for the people who keep India moving. <span class="heart">♥</span></span><span>VoiceKhata <b>·</b> MVP preview</span></footer>
-      </section>
+      <!-- ── Ledger view ── -->
+      <div id="view-ledger" class="hidden">
+        <div class="page-head">
+          <div><p class="eyebrow">FULL HISTORY</p><h1>Khata Ledger</h1></div>
+        </div>
+        <input class="search-input" id="ledgerSearch" placeholder="🔍 Search by customer or type..." oninput="renderLedger()">
+        <p class="ledger-count" id="ledgerCount"></p>
+        <div class="panel" style="padding:0;overflow:hidden">
+          <div class="table-scroll"><table><thead><tr><th style="padding-left:20px">Customer</th><th>Type</th><th>Date</th><th>Note</th><th style="text-align:right;padding-right:20px">Amount</th></tr></thead><tbody id="ledgerRows"></tbody></table></div>
+        </div>
+      </div>
 
-      <section class="view" id="view-voice">
-        <div class="page-heading"><div><p class="eyebrow">FAST & NATURAL</p><h1>Voice entry <span class="wave">✳</span></h1><p class="subheading">Type a transaction to prepare a draft, or enter details manually. Voice transcription is not connected yet.</p></div></div>
+      <!-- ── Voice Entry view ── -->
+      <div id="view-voice" class="hidden">
+        <div class="page-head">
+          <div><p class="eyebrow">RECORD TRANSACTION</p><h1>Voice Entry</h1></div>
+        </div>
         <div class="voice-layout">
-          <article class="panel voice-card"><div class="voice-card-top"><span class="voice-orb">◉</span><span class="voice-status" id="recordStatus">READY WHEN YOU ARE</span></div><h2>What happened at your shop?</h2><p class="muted">Voice transcription is not connected yet. You can type a transaction below; verify every extracted detail before saving.</p><div class="record-area"><button id="recordButton" class="record-button" aria-label="Start recording"><span>🎙</span></button><p id="recordHint">Speech-to-text integration pending</p><small>Allow microphone access when asked. You can also type instead.</small></div><label class="field-label" for="transcriptInput">Transaction details</label><textarea id="transcriptInput" rows="3" placeholder="Try: Ramesh ko 2 kilo chawal 500 rupaye udhaar diya…"></textarea><p class="field-help">Examples: “मोहन ने ₹200 दे दिए” · “Mohan paid ₹200” · “মোহন ২০০ টাকা দিয়েছে”</p><div class="field-row"><label class="field-label" for="languageSelect">Language</label><select id="languageSelect" class="select-control"><option value="auto">Auto detect (recommended)</option><option value="mixed">Hindi + English mix (Hinglish)</option><option value="en">English</option><option value="hi">Hindi</option><option value="bn">Bengali</option></select></div><button id="understandButton" class="primary-button full-button">Prepare draft <span>→</span></button><p class="privacy-note">🔒 Review the extracted details carefully. Nothing is saved until you confirm.</p></article>
-          <article class="panel review-card"><div class="panel-heading"><div><h2>Review your entry</h2><p>Check every detail before saving</p></div><span class="review-step">STEP 2 OF 2</span></div><div id="emptyReview" class="empty-review"><span class="empty-review-icon">✦</span><strong>Your transaction will appear here</strong><p>The text parser is a basic prototype and may misread names or items. Verify every field. For direct manual entry, use the dashboard’s “Enter transaction details” action.</p></div><form id="reviewForm" class="review-form hidden"><div class="parsed-badge"><span>✓</span> Details extracted — please verify</div><label class="field-label" for="reviewCustomer">Customer / name</label><input id="reviewCustomer" required placeholder="Customer name"><label class="field-label" for="reviewKind">Transaction type</label><select id="reviewKind" class="select-control"><option value="credit_sale">Credit sale — customer owes you</option><option value="payment_received">Payment received</option><option value="cash_expense">Shop expense</option></select><label class="field-label" for="reviewAmount">Amount (₹)</label><input id="reviewAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><label class="field-label" for="reviewNote">Item / note</label><input id="reviewNote" placeholder="e.g. 2 kg rice"><label class="confirm-check"><input id="confirmCheck" type="checkbox" required><span>I checked the name, amount, and transaction type.</span></label><button class="primary-button full-button" type="submit">Confirm & save <span>✓</span></button><p class="review-message" id="reviewMessage" role="status"></p></form></article>
+
+          <!-- Left: Record -->
+          <div class="voice-card">
+            <h2>🎙️ Speak a Transaction</h2>
+            <p class="sub">Say a transaction in Hindi, English, or Marathi. Review and save it to your khata.</p>
+            <div class="lang-select-wrap">
+              <label for="langSelect">LANGUAGE</label>
+              <select id="langSelect">
+                <option value="hi-IN">🇮🇳 Hindi</option>
+                <option value="en-IN">🇬🇧 English</option>
+                <option value="mr-IN">🇮🇳 Marathi</option>
+                <option value="en-IN" id="autoLangOpt">🌐 Hinglish / Auto</option>
+              </select>
+            </div>
+            <div class="stt-not-supported" id="sttNotSupported">
+              ⚠️ <strong>Voice recognition needs Chrome or Edge.</strong><br>
+              You can still type the transaction text below and use the parser.
+            </div>
+            <div class="mic-area">
+              <button class="mic-btn" id="micBtn" onclick="toggleRecording()" aria-label="Start recording">🎙️</button>
+              <p class="mic-status" id="micStatus">TAP TO START</p>
+              <p class="mic-hint" id="micHint">Hold and speak your transaction clearly</p>
+            </div>
+            <div class="transcript-area">
+              <label for="transcriptBox">TRANSCRIBED TEXT</label>
+              <textarea id="transcriptBox" rows="3" placeholder="Your speech will appear here... or type manually."></textarea>
+            </div>
+            <div class="voice-actions">
+              <button class="btn-parse" onclick="parseCurrentText()">🤖 Understand Transaction</button>
+              <button class="btn-ghost" onclick="clearVoice()">Clear</button>
+            </div>
+            <div class="examples-section">
+              <h4>EXAMPLE PHRASES</h4>
+              <div class="example-chips">
+                <span class="chip" onclick="useExample(this)">Ramesh ne 200 rupaye liye</span>
+                <span class="chip" onclick="useExample(this)">Anita ne 500 diye</span>
+                <span class="chip" onclick="useExample(this)">Suresh ko 300 udhaar diya</span>
+                <span class="chip" onclick="useExample(this)">Ramesh took 150 on credit</span>
+                <span class="chip" onclick="useExample(this)">500 rupaye ka kharcha</span>
+                <span class="chip" onclick="useExample(this)">Mukesh paid 750</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Review -->
+          <div class="review-card">
+            <h2>✏️ Review &amp; Confirm</h2>
+            <p class="sub">Edit any field before saving. Nothing is written until you confirm.</p>
+            <div id="emptyReview" class="empty-review">
+              <span class="empty-icon">📋</span>
+              <p>Speak or type a transaction, then tap <strong>Understand Transaction</strong> to see a preview here.</p>
+            </div>
+            <div id="reviewForm" class="hidden">
+              <div class="review-step-row">
+                <span class="review-step">1 RECORD</span>
+                <span class="review-step active">2 REVIEW</span>
+                <span class="review-step">3 SAVE</span>
+              </div>
+              <div class="review-fields">
+                <div class="review-field"><label for="rvCustomer">CUSTOMER NAME</label><input id="rvCustomer" placeholder="e.g. Ramesh Kumar"></div>
+                <div class="review-field">
+                  <label for="rvKind">TRANSACTION TYPE</label>
+                  <select id="rvKind">
+                    <option value="credit_sale">Credit given (Udhaar)</option>
+                    <option value="payment_received">Payment received</option>
+                    <option value="cash_expense">Shop expense</option>
+                  </select>
+                </div>
+                <div class="review-field"><label for="rvAmount">AMOUNT (₹)</label><input id="rvAmount" type="number" min="0" step="0.01" placeholder="e.g. 200"></div>
+                <div class="review-field"><label for="rvNote">NOTE</label><input id="rvNote" placeholder="Optional note..."></div>
+              </div>
+              <div class="review-actions">
+                <button class="btn-confirm" onclick="confirmAndSave()">✅ Confirm &amp; Save</button>
+                <button class="btn-discard" onclick="discardReview()">🗑️ Discard</button>
+              </div>
+            </div>
+            <div id="successFlash" class="success-flash">
+              <span class="sf-icon">✅</span>
+              <strong>Transaction saved!</strong>
+              <p id="successDetail"></p>
+              <button class="btn-primary" style="width:auto;padding:10px 22px" onclick="recordAnother()">Record Another</button>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section class="view" id="view-ledger">
-        <div class="page-heading"><div><p class="eyebrow">EVERY RUPEE, ACCOUNTED FOR</p><h1>Khata ledger</h1><p class="subheading">A clear record of credit, collections, and expenses.</p></div><button class="primary-button" data-go="voice">＋ Add transaction</button></div>
-        <article class="panel ledger-panel"><div class="panel-heading"><div><h2>All transactions</h2><p id="ledgerCount">Your shop's transaction history</p></div><input id="ledgerSearch" class="search-input" placeholder="⌕  Search name or note..." aria-label="Search transactions"></div><div class="table-scroll"><table><thead><tr><th>PERSON / DETAILS</th><th>TYPE</th><th>DATE & TIME</th><th class="amount-heading">AMOUNT</th><th>STATUS</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></article>
-      </section>
+      <!-- ── Customers view ── -->
+      <div id="view-customers" class="hidden">
+        <div class="page-head">
+          <div><p class="eyebrow">CUSTOMER ACCOUNTS</p><h1>Customers</h1></div>
+        </div>
+        <input class="search-input" id="custSearch" placeholder="🔍 Search customers..." oninput="renderCustomers()" style="margin-bottom:18px">
+        <div class="customer-grid" id="customerGrid"></div>
+      </div>
 
-      <section class="view" id="view-customers">
-        <div class="page-heading"><div><p class="eyebrow">YOUR REGULARS, ALL IN ONE PLACE</p><h1>Customers</h1><p class="subheading">Know each customer's outstanding balance at a glance.</p></div></div>
-        <article class="panel"><div class="panel-heading"><div><h2>Customer balances</h2><p>Sorted by customer name</p></div><input id="customerSearch" class="search-input" placeholder="⌕  Find a customer..." aria-label="Search customers"></div><div class="customer-grid" id="customerGrid"></div></article>
-      </section>
-    </main>
-  </div>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <div class="modal-backdrop hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle"><div class="modal"><button class="modal-close" id="closeHelp" aria-label="Close">×</button><span class="help-icon">✦</span><h2 id="helpTitle">Simple as saying it</h2><ol><li><strong>Say what happened.</strong><p>“Ramesh paid ₹200 towards his old balance.”</p></li><li><strong>Check the details.</strong><p>Review the customer, amount, and transaction type.</p></li><li><strong>Confirm to save.</strong><p>Your ledger updates only after you confirm.</p></li></ol><p class="muted small">AI helps understand your words. The app calculates balances with code.</p></div></div>
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  VoiceKhata — Merged Prototype (all branches unified)
+//  Features: Web Speech API STT, NLP parser, localStorage ledger
+// ═══════════════════════════════════════════════════════════
+
+const SHOP_KEY = "vk.shop.v1";
+const TXNS_KEY = "vk.txns.v1";
+const $ = id => document.getElementById(id);
+
+// ── Data ──────────────────────────────────────────────────
+const DEMO_TRANSACTIONS = [
+  {id:"d1",customer:"Ramesh Kumar",kind:"credit_sale",amount:800,note:"Atta & Dal",created_at:new Date(Date.now()-86400000*2).toISOString()},
+  {id:"d2",customer:"Ramesh Kumar",kind:"payment_received",amount:500,note:"Cash payment",created_at:new Date(Date.now()-86400000).toISOString()},
+  {id:"d3",customer:"Anita Devi",kind:"credit_sale",amount:1250,note:"Cooking Oil & Masala",created_at:new Date(Date.now()-3600000*5).toISOString()},
+  {id:"d4",customer:"Suresh",kind:"credit_sale",amount:200,note:"Chawal (Rice)",created_at:new Date(Date.now()-3600000*3).toISOString()},
+  {id:"d5",customer:"Mukesh Kumar",kind:"credit_sale",amount:750,note:"Dairy & Milk",created_at:new Date(Date.now()-3600000*2).toISOString()},
+  {id:"d6",customer:"Mukesh Kumar",kind:"payment_received",amount:750,note:"UPI payment",created_at:new Date(Date.now()-3600000).toISOString()},
+  {id:"d7",customer:"Meena",kind:"credit_sale",amount:350,note:"Monthly grocery",created_at:new Date().toISOString()},
+];
+
+let transactions = [];
+let demoMode = false;
+let chartInstance = null;
+let toastTimer = null;
+let recognition = null;
+let isRecognizing = false;
+let currentView = "dashboard";
+
+function loadTransactions() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(TXNS_KEY) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch { return []; }
+}
+function saveTransactions() {
+  try { localStorage.setItem(TXNS_KEY, JSON.stringify(transactions)); } catch(e) { showToast("Could not save: " + e.message); }
+}
+function getShopProfile() {
+  try { return JSON.parse(localStorage.getItem(SHOP_KEY)); } catch { return null; }
+}
+
+// ── Formatting ────────────────────────────────────────────
+const rupees = v => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(Number(v)||0);
+const esc = v => String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const initials = n => String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase();
+const kindLabels = {credit_sale:"Credit given",payment_received:"Payment received",cash_expense:"Shop expense"};
+const kindClass = k => k==="credit_sale"?"type-credit":k==="payment_received"?"type-payment":"type-expense";
+
+function dateTime(v) {
+  const d = new Date(v);
+  if(isNaN(d.getTime())) return "Just now";
+  return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short"}) + " · " + d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+}
+
+function toneClass(i) { return "t" + (i % 4); }
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3500);
+}
+
+// ── Onboarding ────────────────────────────────────────────
+$("setupForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const owner = $("setupOwner").value.trim();
+  const shop = $("setupShop").value.trim();
+  if(!owner || !shop) return;
+  localStorage.setItem(SHOP_KEY, JSON.stringify({ownerName: owner, shopName: shop}));
+  initApp();
+});
+
+function initApp() {
+  const profile = getShopProfile();
+  if(!profile) { $("onboarding").style.display = ""; $("app").classList.add("hidden"); return; }
+  $("onboarding").style.display = "none";
+  $("app").classList.remove("hidden");
+
+  // Populate sidebar labels
+  const av = initials(profile.shopName);
+  $("shopAv").textContent = av;
+  $("shopNameSidebar").textContent = profile.shopName;
+  $("shopOwnerSidebar").textContent = profile.ownerName;
+  $("profAvSidebar").textContent = initials(profile.ownerName);
+  $("profNameSidebar").textContent = profile.ownerName;
+
+  // Today label
+  $("todayLabel").textContent = new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
+
+  // Load data
+  transactions = loadTransactions();
+  demoMode = transactions.length === 0;
+  if(demoMode) { transactions = [...DEMO_TRANSACTIONS]; }
+
+  $("demoBanner").style.display = demoMode ? "" : "none";
+  initSpeech();
+  navigate("dashboard");
+}
+
+// ── Navigation ────────────────────────────────────────────
+function navigate(view) {
+  currentView = view;
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+  document.querySelectorAll("[id^='view-']").forEach(v => v.classList.add("hidden"));
+  $("view-" + view).classList.remove("hidden");
+  const breadcrumbMap = {dashboard:"Overview",ledger:"Khata Ledger",voice:"Voice Entry",customers:"Customers"};
+  $("breadcrumb").innerHTML = `<strong>${breadcrumbMap[view]||view}</strong>`;
+  if(view === "dashboard") renderDashboard();
+  if(view === "ledger") renderLedger();
+  if(view === "customers") renderCustomers();
+  if(window.innerWidth < 800) $("sidebar").classList.remove("open");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function toggleSidebar() { $("sidebar").classList.toggle("open"); }
+
+// ── Metrics & Dashboard ───────────────────────────────────
+function balancesByCustomer() {
+  const balances = {};
+  for(const t of transactions) {
+    if(t.kind === "cash_expense") continue;
+    balances[t.customer] = (balances[t.customer]||0) + (t.kind==="credit_sale" ? Number(t.amount) : -Number(t.amount));
+  }
+  return Object.entries(balances).map(([customer, balance]) => ({customer, balance}));
+}
+
+function renderDashboard() {
+  const profile = getShopProfile();
+  const firstName = (profile?.ownerName||"").split(" ")[0];
+  $("dashGreeting").innerHTML = "Welcome" + (firstName ? `, ${esc(firstName)}` : " to VoiceKhata") + ' <span class="wave">✳</span>';
+
+  const today = new Date().toISOString().slice(0,10);
+  const balances = balancesByCustomer();
+  const totalDue = balances.reduce((s,b) => s + Math.max(0, b.balance), 0);
+  const todayTxns = transactions.filter(t => t.created_at.startsWith(today));
+  const collected = todayTxns.filter(t=>t.kind==="payment_received").reduce((s,t)=>s+Number(t.amount),0);
+  const credit = todayTxns.filter(t=>t.kind==="credit_sale").reduce((s,t)=>s+Number(t.amount),0);
+  const activeCustomers = balances.filter(b=>b.balance>0).length;
+
+  $("metTotalDue").textContent = rupees(totalDue);
+  $("metCollected").textContent = rupees(collected);
+  $("metCredit").textContent = rupees(credit);
+  $("metCustomers").textContent = activeCustomers;
+
+  // Recent rows
+  const recent = [...transactions].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
+  $("recentRows").innerHTML = recent.length ? recent.map((t,i) => `
+    <tr>
+      <td><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}</strong><small>${esc(t.note||"")}</small></div></div></td>
+      <td><span class="type-pill ${kindClass(t.kind)}">${kindLabels[t.kind]}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${dateTime(t.created_at)}</td>
+      <td class="amount-cell ${t.kind!=="payment_received"?"outgoing":""}">${t.kind==="payment_received"?"−":"+"}${rupees(t.amount)}</td>
+    </tr>`).join("") : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No transactions yet.</td></tr>';
+
+  renderChart();
+}
+
+function renderChart() {
+  const canvas = $("flowChart");
+  if(!canvas || !window.Chart) return;
+  const days = Array.from({length:7},(_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().slice(0,10);
+  });
+  const credit = days.map(d => transactions.filter(t=>t.kind==="credit_sale"&&t.created_at.startsWith(d)).reduce((s,t)=>s+Number(t.amount),0));
+  const payments = days.map(d => transactions.filter(t=>t.kind==="payment_received"&&t.created_at.startsWith(d)).reduce((s,t)=>s+Number(t.amount),0));
+  const labels = days.map(d => { const dt=new Date(d); return dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short"}); });
+
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(canvas, {
+    type:"bar",
+    data:{labels,datasets:[
+      {label:"Credit given",data:credit,backgroundColor:"rgba(192,57,43,.7)",borderRadius:4},
+      {label:"Payments received",data:payments,backgroundColor:"rgba(26,122,72,.7)",borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10},boxWidth:12}}},scales:{x:{ticks:{font:{size:9}}},y:{ticks:{callback:v=>"₹"+v,font:{size:9}}}}}
+  });
+}
+
+// ── Ledger ────────────────────────────────────────────────
+function renderLedger() {
+  const q = ($("ledgerSearch")?.value||"").toLowerCase();
+  const sorted = [...transactions].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const filtered = sorted.filter(t => (t.customer+" "+t.note+" "+(kindLabels[t.kind]||"")).toLowerCase().includes(q));
+  $("ledgerCount").textContent = `${filtered.length} transaction${filtered.length!==1?"s":""} shown`;
+  $("ledgerRows").innerHTML = filtered.length ? filtered.map((t,i) => `
+    <tr>
+      <td style="padding-left:20px"><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}</strong></div></div></td>
+      <td><span class="type-pill ${kindClass(t.kind)}">${kindLabels[t.kind]}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${dateTime(t.created_at)}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:180px">${esc(t.note||"—")}</td>
+      <td class="amount-cell ${t.kind!=="payment_received"?"outgoing":""}" style="padding-right:20px">${t.kind==="payment_received"?"−":"+"}${rupees(t.amount)}</td>
+    </tr>`).join("") : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">No transactions found.</td></tr>';
+}
+
+// ── Customers ─────────────────────────────────────────────
+function renderCustomers() {
+  const q = ($("custSearch")?.value||"").toLowerCase();
+  const balances = balancesByCustomer().filter(b => b.customer.toLowerCase().includes(q));
+  $("customerGrid").innerHTML = balances.length ? balances.map((b,i) => {
+    const cls = b.balance>0?"positive":b.balance<0?"negative":"zero";
+    const lbl = b.balance>0?"Outstanding":b.balance<0?"Credit balance":"Settled";
+    return `<div class="customer-card">
+      <span class="av ${toneClass(i)}" style="width:38px;height:38px;border-radius:10px;font-size:13px">${esc(initials(b.customer))}</span>
+      <div class="customer-info"><strong>${esc(b.customer)}</strong><small>Customer account</small></div>
+      <div class="customer-balance ${cls}"><strong>${rupees(Math.abs(b.balance))}</strong><small>${lbl}</small></div>
+    </div>`;
+  }).join("") : '<p style="color:var(--muted);font-size:12px">No customers found.</p>';
+}
+
+// ── NLP Parser ────────────────────────────────────────────
+function parseTransactionText(text) {
+  const orig = text.trim();
+  const lower = orig.toLowerCase();
+
+  // Amount extraction
+  let amount = 0;
+  const amountPatterns = [
+    /₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/,
+    /([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)/i,
+    /([0-9,]+(?:\.[0-9]{1,2})?)/,
+  ];
+  for(const p of amountPatterns) {
+    const m = lower.match(p);
+    if(m) { amount = parseFloat(m[1].replace(/,/g,"")); break; }
+  }
+
+  // Kind detection
+  const paymentWords = /\b(diye|diya|deta|dia|paid|payment|returned|wapas|collected|mila|ne\s+diye|ne\s+diya|settled|repaid|jama)\b/i;
+  const expenseWords = /\b(kharcha|kharche|expense|shop\s+expense|bijli|rent|purchase|shopkeeper|bill|electricity|kharid)\b/i;
+  let kind = "credit_sale";
+  if(paymentWords.test(lower)) kind = "payment_received";
+  if(expenseWords.test(lower)) kind = "cash_expense";
+
+  // Customer extraction
+  let ct = orig;
+  // remove amount
+  ct = ct.replace(/₹\s*[0-9,]+(?:\.[0-9]{1,2})?/g, " ");
+  ct = ct.replace(/[0-9,]+(?:\.[0-9]{1,2})?\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)?/gi, " ");
+  // remove filler words
+  ct = ct.replace(/\b(ne|ko|se|ka|ki|ke|liye|liya|diye|diya|deta|dia|paid|payment|credit|udhaar|udhar|took|gave|give|taken|on|for|to|from|the|a|an|me|rupaye|rupee|wapas|returned|collected|jama|settled|repaid|kharcha|expense|bill|mila|aur|and|hai)\b/gi, " ");
+  ct = ct.replace(/[₹,:।!?]/g, " ").replace(/\s+/g, " ").trim();
+  const words = ct.split(" ").filter(w=>w.length>1);
+  const customer = words.slice(0,2).join(" ").trim() || (kind==="cash_expense" ? "Shop Expense" : "");
+
+  return { customer, kind, amount, note: orig, requires_confirmation: true };
+}
+
+// ── Web Speech API ────────────────────────────────────────
+function initSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition) {
+    $("sttNotSupported").style.display = "";
+    $("micBtn").style.opacity = "0.4";
+    $("micBtn").title = "Speech recognition not supported. Use Chrome or Edge.";
+    $("micBtn").onclick = () => showToast("⚠️ Speech recognition needs Chrome or Edge browser.");
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isRecognizing = true;
+    $("micBtn").classList.add("recording");
+    $("micBtn").textContent = "⏹";
+    $("micStatus").textContent = "LISTENING...";
+    $("micHint").textContent = "Speak clearly — tap mic again to stop";
+    $("transcriptBox").value = "";
+    $("transcriptBox").className = "interim";
+    $("transcriptBox").placeholder = "Listening...";
+  };
+
+  recognition.onresult = e => {
+    let interim = "", final = "";
+    for(let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    $("transcriptBox").value = (final || interim);
+    $("transcriptBox").className = final ? "" : "interim";
+  };
+
+  recognition.onend = () => {
+    isRecognizing = false;
+    $("micBtn").classList.remove("recording");
+    $("micBtn").textContent = "🎙️";
+    $("micStatus").textContent = "TAP TO START";
+    $("micHint").textContent = "Hold and speak your transaction clearly";
+    $("transcriptBox").className = "";
+    $("transcriptBox").placeholder = "Your speech will appear here... or type manually.";
+    if($("transcriptBox").value.trim()) {
+      showToast("✅ Speech captured! Tap 'Understand Transaction' to parse it.");
+    }
+  };
+
+  recognition.onerror = e => {
+    isRecognizing = false;
+    $("micBtn").classList.remove("recording");
+    $("micBtn").textContent = "🎙️";
+    $("micStatus").textContent = "TAP TO START";
+    const msgs = {
+      "not-allowed": "❌ Microphone permission denied. Please allow mic access in your browser.",
+      "no-speech": "🔇 No speech detected. Please try again.",
+      "network": "🌐 Network error. Check your connection.",
+    };
+    showToast(msgs[e.error] || "Speech error: " + e.error);
+  };
+}
+
+function toggleRecording() {
+  if(!recognition) { showToast("⚠️ Speech recognition needs Chrome or Edge."); return; }
+  if(isRecognizing) {
+    recognition.stop();
+  } else {
+    const lang = $("langSelect").value;
+    recognition.lang = lang;
+    try { recognition.start(); }
+    catch(e) { showToast("Could not start mic: " + e.message); }
+  }
+}
+
+function useExample(el) {
+  $("transcriptBox").value = el.textContent;
+  $("transcriptBox").className = "";
+  showToast("Example loaded — tap 'Understand Transaction' to parse it.");
+}
+
+function clearVoice() {
+  if(isRecognizing) recognition.stop();
+  $("transcriptBox").value = "";
+  $("transcriptBox").className = "";
+  discardReview();
+}
+
+// ── Parse & Review ────────────────────────────────────────
+function parseCurrentText() {
+  const text = $("transcriptBox").value.trim();
+  if(!text) { showToast("Please record or type a transaction first."); return; }
+  const parsed = parseTransactionText(text);
+  showReviewForm(parsed);
+}
+
+function showReviewForm(parsed) {
+  $("emptyReview").classList.add("hidden");
+  $("successFlash").style.display = "none";
+  $("reviewForm").classList.remove("hidden");
+  $("rvCustomer").value = parsed.customer || "";
+  $("rvKind").value = parsed.kind || "credit_sale";
+  $("rvAmount").value = parsed.amount || "";
+  $("rvNote").value = parsed.note || "";
+}
+
+function discardReview() {
+  $("reviewForm").classList.add("hidden");
+  $("successFlash").style.display = "none";
+  $("emptyReview").classList.remove("hidden");
+}
+
+function confirmAndSave() {
+  const customer = $("rvCustomer").value.trim();
+  const kind = $("rvKind").value;
+  const amount = parseFloat($("rvAmount").value);
+  const note = $("rvNote").value.trim();
+
+  if(!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
+  if(!amount || amount <= 0) { showToast("Please enter a valid amount greater than 0."); $("rvAmount").focus(); return; }
+
+  const txn = { id: "tx_" + Date.now(), customer, kind, amount, note, created_at: new Date().toISOString() };
+
+  if(demoMode) {
+    // First real transaction — clear demo data
+    transactions = [];
+    demoMode = false;
+    $("demoBanner").style.display = "none";
+  }
+
+  transactions.unshift(txn);
+  saveTransactions();
+
+  $("reviewForm").classList.add("hidden");
+  $("emptyReview").classList.add("hidden");
+  const sf = $("successFlash");
+  sf.style.display = "block";
+  $("successDetail").textContent = `${customer} — ${kindLabels[kind]} — ${rupees(amount)}`;
+  showToast("🎉 Transaction saved to khata!");
+}
+
+function recordAnother() {
+  $("successFlash").style.display = "none";
+  $("emptyReview").classList.remove("hidden");
+  $("transcriptBox").value = "";
+  $("transcriptBox").className = "";
+}
+
+// ── Boot ──────────────────────────────────────────────────
+(function boot() {
+  const profile = getShopProfile();
+  if(profile) {
+    $("onboarding").style.display = "none";
+    initApp();
+  }
+})();
+</script>
 </body>
 </html>
