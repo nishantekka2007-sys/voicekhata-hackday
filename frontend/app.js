@@ -47,7 +47,7 @@ let toastTimer = null;
 let chartInstance = null;
 const $ = id => document.getElementById(id);
 const rupees = value => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(value)||0);
-const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const esc = value => String(value ?? "").replace(/[&<>"\']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"' :"&quot;","\'":"&#39;"}[ch]));
 const kindLabels = {credit_sale:"Credit given",payment_received:"Payment received",cash_expense:"Shop expense"};
 function showToast(message){const node=$("toast");node.textContent=message;node.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove("show"),3600);}
 function dateTime(value){const d=new Date(value);return Number.isNaN(d.getTime())?"Just now":d.toLocaleDateString("en-IN",{day:"2-digit",month:"short"})+" · "+d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});}
