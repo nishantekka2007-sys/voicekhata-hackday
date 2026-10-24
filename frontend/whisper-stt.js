@@ -12,6 +12,7 @@ const TRANSFORMERS_MODULE_URLS = [
 ];
 // Use the supported multilingual tiny model for reliable loading on mobile devices.
 const WHISPER_MODEL = "onnx-community/whisper-tiny";
+const WHISPER_HINDI_MODEL = "onnx-community/whisper-base";
 const TARGET_SAMPLE_RATE = 16000;
 const MAX_RECORDING_SECONDS = 25;
 
@@ -22,6 +23,8 @@ let recording = false;
 let processing = false;
 let cancelRequested = false;
 let transcriberPromise = null;
+let transcriberMode = "";
+
 let modelWarmupError = null;
 let recordingTimer = null;
 
@@ -76,26 +79,37 @@ function setModelProgress(progress) {
   }
 }
 
-function loadTranscriber() {
-  if (!transcriberPromise) {
+function loadTranscriber(selectedLanguage = "hi-IN") {
+  const mode = (selectedLanguage === "hi-IN" || selectedLanguage === "auto") ? "hindi" : "other";
+  if (!transcriberPromise || transcriberMode !== mode) {
+    transcriberMode = mode;
     modelWarmupError = null;
     transcriberPromise = (async () => {
-      if (!recording) showStatus("LOADING LOCAL SPEECH MODEL", "First use downloads the speech model. It will be cached by your browser.");
+      if (!recording) showStatus("LOADING SPEECH MODEL", "The first use downloads a model. After it is cached, on-device transcription can work offline.");
       let transformers;
       let lastError;
       for (const url of TRANSFORMERS_MODULE_URLS) {
-        try { transformers = await import(url); if (transformers?.pipeline) break; }
-        catch (error) { lastError = error; }
+        try {
+          transformers = await import(url);
+          if (transformers?.pipeline) break;
+        } catch (error) { lastError = error; }
       }
-      if (!transformers?.pipeline) throw new Error("Speech library download failed: " + (lastError?.message || "CDN unavailable"));
-      return transformers.pipeline(
-        "automatic-speech-recognition",
-        WHISPER_MODEL,
-        { progress_callback: setModelProgress }
-      );
-    })().catch((error) => {
+      if (!transformers?.pipeline) throw new Error("Speech library could not download: " + (lastError?.message || "connection blocked"));
+      const preferred = mode === "hindi" ? WHISPER_HINDI_MODEL : WHISPER_MODEL;
+      try {
+        return await transformers.pipeline("automatic-speech-recognition", preferred,
+          {device:"wasm", dtype:"q8", progress_callback:setModelProgress});
+      } catch (error) {
+        if (preferred === WHISPER_MODEL) throw error;
+        console.warn("Hindi Whisper base unavailable; using lighter model", error);
+        showStatus("PREPARING SMALLER MODEL", "Hindi base model unavailable. Trying lighter multilingual Whisper instead.");
+        return transformers.pipeline("automatic-speech-recognition", WHISPER_MODEL,
+          {device:"wasm", dtype:"q8", progress_callback:setModelProgress});
+      }
+    })().catch(error => {
       modelWarmupError = error;
       transcriberPromise = null;
+      transcriberMode = "";
       throw error;
     });
   }
@@ -165,7 +179,7 @@ async function transcribeBlob(blob, selectedLanguage) {
   showStatus("PREPARING AUDIO", "Converting the microphone recording for local transcription.");
   try {
     const [asr, samples] = await Promise.all([
-      loadTranscriber(),
+      loadTranscriber(selectedLanguage),
       decodeAudioTo16k(blob)
     ]);
 
@@ -203,11 +217,11 @@ async function transcribeBlob(blob, selectedLanguage) {
     console.error("VoiceKhata local transcription failed:", error);
     const detail = modelWarmupError ? String(modelWarmupError.message || modelWarmupError) : String(error && error.message || error);
     if (/fetch|network|load|download|wasm|model/i.test(detail)) {
-      toast("Local Whisper could not load. Select Browser speech in the recording mode selector, or type the transaction.");
+      toast("On-device speech model could not download or start. An internet connection is required for the FIRST model download; try another network, or type the transaction.");
     } else {
       toast("Local transcription failed: " + detail);
     }
-    showStatus("TAP TO RECORD", "Local speech model could not start. You can still type the transaction.");
+    showStatus("TAP TO RECORD", "Local speech needs a downloaded model. Check your connection once, or enter the transaction as text.");
   } finally {
     processing = false;
     cancelRequested = false;
@@ -264,7 +278,7 @@ async function startRecording(selectedLanguage) {
   showStatus("RECORDING NOW", "Speak clearly. Tap the microphone again to transcribe locally. Max " + MAX_RECORDING_SECONDS + " seconds.");
   
   // Begin loading the optional local speech engine while recording.
-  loadTranscriber().catch((error) => {
+  loadTranscriber(selectedLanguage).catch((error) => {
     console.warn("Whisper model pre-load failed; it will retry after recording:", error);
   });
 
@@ -372,7 +386,7 @@ function beginBrowserSpeech(selectedLanguage) {
   }
 }
 async function toggle(selectedLanguage) {
-  const mode = getElement("speechEngine")?.value || "browser";
+  const mode = getElement("speechEngine")?.value || "local";
   if (browserRecording) { stopBrowserSpeech(); return; }
   if (recording || processing) { await localToggle(selectedLanguage); return; }
   if (mode === "browser") beginBrowserSpeech(selectedLanguage);
