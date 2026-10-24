@@ -1,8 +1,6 @@
 import os
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
 
 def setup_module():
     os.environ["VOICEKHATA_DB_PATH"] = str(Path(__file__).parent / "test-voicekhata.db")
@@ -15,6 +13,7 @@ def teardown_module():
 
 
 def test_health_and_auth_config():
+    from fastapi.testclient import TestClient
     from backend.main import app
     with TestClient(app) as client:
         assert client.get("/api/health").json()["status"] == "ok"
@@ -23,7 +22,16 @@ def test_health_and_auth_config():
 
 
 def test_ledger_requires_login():
+    from fastapi.testclient import TestClient
     from backend.main import app
     with TestClient(app) as client:
-        response = client.get("/api/transactions")
-        assert response.status_code == 401
+        assert client.get("/api/transactions").status_code == 401
+
+
+def test_google_login_fails_closed_without_client_id(monkeypatch):
+    from fastapi.testclient import TestClient
+    import backend.main as main
+    monkeypatch.setattr(main, "GOOGLE_CLIENT_ID", "")
+    with TestClient(main.app) as client:
+        response = client.post("/api/auth/google", json={"credential": "a" * 40})
+        assert response.status_code in (401, 503)
