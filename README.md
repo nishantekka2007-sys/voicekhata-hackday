@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # GemmaKhata — Voice-First Digital Ledger
 
 A multilingual, voice-first digital ledger web application for micro-vendors, kirana store owners, and local artisans in India. Vendors speak naturally in Hindi, English, Hinglish, or Marathi to record customer credit (*udhaar*), payments (*jama*), and instantly view balances and financial summaries.
@@ -113,6 +113,5 @@ python gemma_ai.py
 | Suresh   | credit  | Rs.200 | Chawal |
 
 Both transactions are shown as editable cards. Nothing is saved until the shopkeeper confirms.
-=======
 
->>>>>>> 0132778342cd790763f979573e76e907060987b5
+0132778342cd790763f979573e76e907060987b5
