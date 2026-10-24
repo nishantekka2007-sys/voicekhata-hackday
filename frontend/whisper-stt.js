@@ -15,6 +15,7 @@ const WHISPER_MODEL = "onnx-community/whisper-tiny";
 const WHISPER_HINDI_MODEL = "onnx-community/whisper-base";
 const TARGET_SAMPLE_RATE = 16000;
 const MAX_RECORDING_SECONDS = 25;
+const MAX_TRANSCRIPTION_SECONDS = 25;
 
 let recorder = null;
 let mediaStream = null;
@@ -26,6 +27,10 @@ let transcriberPromise = null;
 let transcriberMode = "";
 
 let modelWarmupError = null;
+let previousTranscription = "";
+let lastRecordedBlob = null;
+let lastRecordedLanguage = "hi-IN";
+let modelReady = false;
 let recordingTimer = null;
 
 const getElement = (id) => document.getElementById(id);
@@ -84,6 +89,7 @@ function loadTranscriber(selectedLanguage = "hi-IN") {
   if (!transcriberPromise || transcriberMode !== mode) {
     transcriberMode = mode;
     modelWarmupError = null;
+    modelReady = false;
     transcriberPromise = (async () => {
       if (!recording) showStatus("LOADING SPEECH MODEL", "The first use downloads a model. After it is cached, on-device transcription can work offline.");
       let transformers;
@@ -97,17 +103,22 @@ function loadTranscriber(selectedLanguage = "hi-IN") {
       if (!transformers?.pipeline) throw new Error("Speech library could not download: " + (lastError?.message || "connection blocked"));
       const preferred = mode === "hindi" ? WHISPER_HINDI_MODEL : WHISPER_MODEL;
       try {
-        return await transformers.pipeline("automatic-speech-recognition", preferred,
+        const model = await transformers.pipeline("automatic-speech-recognition", preferred,
           {device:"wasm", dtype:"q8", progress_callback:setModelProgress});
+        modelReady = true;
+        return model;
       } catch (error) {
         if (preferred === WHISPER_MODEL) throw error;
         console.warn("Hindi Whisper base unavailable; using lighter model", error);
         showStatus("PREPARING SMALLER MODEL", "Hindi base model unavailable. Trying lighter multilingual Whisper instead.");
-        return transformers.pipeline("automatic-speech-recognition", WHISPER_MODEL,
+        const model = await transformers.pipeline("automatic-speech-recognition", WHISPER_MODEL,
           {device:"wasm", dtype:"q8", progress_callback:setModelProgress});
+        modelReady = true;
+        return model;
       }
     })().catch(error => {
       modelWarmupError = error;
+      modelReady = false;
       transcriberPromise = null;
       transcriberMode = "";
       throw error;
@@ -186,13 +197,21 @@ async function transcribeBlob(blob, selectedLanguage) {
     if (cancelRequested) return;
     showStatus("TRANSCRIBING ON THIS DEVICE", "Whisper is processing the recording in your browser.");
     const chosenLanguage = whisperLanguage(selectedLanguage);
-    const options = { task: "transcribe", return_timestamps: false };
+    const options = {
+      task: "transcribe",
+      return_timestamps: false,
+      chunk_length_s: MAX_TRANSCRIPTION_SECONDS,
+      stride_length_s: 2,
+      // Short transactional phrases need consistent deterministic decoding.
+      temperature: 0,
+      num_beams: 3
+    };
     if (chosenLanguage) options.language = chosenLanguage;
     const result = await asr(samples, options);
 
     if (cancelRequested) return;
     const transcript = String(result && result.text || "").trim();
-    const likelyHallucination = /^(?:thank you\.?|thanks\.?|subtitles by|music|you)$/i.test(transcript);
+    const likelyHallucination = /^(?:thank you\.?|thanks\.?|subtitles by|music|you|thanks for watching|subscribe)$/i.test(transcript);
     if (likelyHallucination) {
       toast("Speech was unclear. Please record again or edit the transcript.");
       showStatus("TAP TO RECORD", "Could not reliably recognize your transaction.");
@@ -206,12 +225,21 @@ async function transcribeBlob(blob, selectedLanguage) {
 
     const transcriptBox = getElement("transcriptBox");
     if (transcriptBox) {
+      // Never silently erase a manually edited transcription when retrying.
+      const existing = transcriptBox.value.trim();
+      if (existing && existing !== previousTranscription && existing !== transcript) {
+        if (!window.confirm("Replace your current edited transcription with this new result?")) {
+          showStatus("TRANSCRIPT KEPT", "Your manually edited text was preserved.");
+          return;
+        }
+      }
+      previousTranscription = transcript;
       transcriptBox.value = transcript;
       transcriptBox.className = "";
       transcriptBox.placeholder = "Your speech will appear here... or type manually.";
       transcriptBox.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    showStatus("TRANSCRIPTION READY", "Check the transcript, then choose Understand Transaction.");
+    showStatus("TRANSCRIPTION READY", "Check every Hindi word, especially the customer name and rupee amount. Correct any mistakes before parsing.");
     toast("Speech converted to text. Check it before preparing the transaction.");
   } catch (error) {
     console.error("VoiceKhata local transcription failed:", error);
@@ -269,6 +297,8 @@ async function startRecording(selectedLanguage) {
       cancelRequested = false;
       return;
     }
+    lastRecordedBlob = blob;
+    lastRecordedLanguage = selectedLanguage;
     await transcribeBlob(blob, selectedLanguage);
   };
 
@@ -277,10 +307,7 @@ async function startRecording(selectedLanguage) {
   setMicVisual(true);
   showStatus("RECORDING NOW", "Speak clearly. Tap the microphone again to transcribe locally. Max " + MAX_RECORDING_SECONDS + " seconds.");
   
-  // Begin loading the optional local speech engine while recording.
-  loadTranscriber(selectedLanguage).catch((error) => {
-    console.warn("Whisper model pre-load failed; it will retry after recording:", error);
-  });
+  // The language-specific model is prepared before microphone recording begins.
 
   recordingTimer = setTimeout(() => {
     if (recording && recorder && recorder.state === "recording") {
@@ -300,6 +327,11 @@ async function localToggle(selectedLanguage) {
     return;
   }
   try {
+    if (!modelReady || !transcriberPromise || (transcriberMode === "hindi") !== (selectedLanguage === "hi-IN" || selectedLanguage === "auto")) {
+      showStatus("PREPARING HINDI MODEL", "Downloading or opening speech model before recording. The first use needs internet.");
+      await loadTranscriber(selectedLanguage);
+      showStatus("MODEL READY", "Tap recording and speak slowly, with a brief pause before and after your sentence.");
+    }
     await startRecording(selectedLanguage);
   } catch (error) {
     console.error("VoiceKhata microphone error:", error);
@@ -362,7 +394,7 @@ function beginBrowserSpeech(selectedLanguage) {
     const issue = {
       "not-allowed": "Microphone permission denied. Allow microphone access in browser site settings.",
       "service-not-allowed": "Browser speech service is unavailable. Select Local Whisper instead.",
-      "network": "Browser speech needs an internet connection. Try Local Whisper or type the transaction.",
+      "network": "The browser speech provider failed, which can happen even when the internet works. Choose Local Whisper instead.",
       "no-speech": "No speech detected. Speak clearly and try again.",
       "audio-capture": "No microphone was found. Check your system microphone settings.",
       "language-not-supported": "This browser does not support the selected language. Try Hindi or Local Whisper."
@@ -385,6 +417,19 @@ function beginBrowserSpeech(selectedLanguage) {
     toast("Browser microphone could not start: " + error.message);
   }
 }
+async function retryTranscription() {
+  if (!lastRecordedBlob) {
+    toast("Record a transaction first. There is no saved audio to retry.");
+    return;
+  }
+  if (recording || browserRecording || processing) {
+    toast("Finish the current recording first.");
+    return;
+  }
+  const selected = getElement("langSelect")?.value || lastRecordedLanguage;
+  await transcribeBlob(lastRecordedBlob, selected);
+}
+
 async function toggle(selectedLanguage) {
   const mode = getElement("speechEngine")?.value || "local";
   if (browserRecording) { stopBrowserSpeech(); return; }
@@ -406,6 +451,9 @@ function cancel() {
 window.VoiceKhataWhisper = {
   toggle,
   cancel,
+  retryTranscription,
+  prepare: loadTranscriber,
+  get modelReady() { return modelReady; },
   get isRecording() { return recording || browserRecording; },
   get isProcessing() { return processing; }
 };
