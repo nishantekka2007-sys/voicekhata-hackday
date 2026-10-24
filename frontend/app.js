@@ -156,7 +156,7 @@ async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
   if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
-  $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
+  $("understandButton").disabled=true;$("understandButton").textContent="Preparing draft…";
   let parsed;
   const selectedLanguage=$("languageSelect").value;
   const language=selectedLanguage==="mixed"?"auto":selectedLanguage;
@@ -167,13 +167,26 @@ async function understandTransaction(){
   }catch(error){
     showToast((error.message||"Could not understand this transaction.")+" Nothing was saved. Check the backend connection or edit the transcript.");
     return;
-  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
+  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Prepare draft <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
   $("reviewAmount").value=parsed.amount||"";
   $("reviewNote").value=parsed.note||text;
   $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
   $("reviewMessage").textContent="";
+}
+function openManualEntry(){
+  navigate("voice");
+  $("transcriptInput").value="";
+  $("reviewCustomer").value="";
+  $("reviewKind").value="credit_sale";
+  $("reviewAmount").value="";
+  $("reviewNote").value="";
+  $("confirmCheck").checked=false;
+  $("emptyReview").classList.add("hidden");
+  $("reviewForm").classList.remove("hidden");
+  $("reviewMessage").textContent="Manual entry: fill in the details, verify them, then confirm to save.";
+  $("reviewCustomer").focus();
 }
 async function saveTransaction(event){
   event.preventDefault();
@@ -240,6 +253,7 @@ function setDates(){
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.view)));
 document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.go)));
+document.querySelectorAll("[data-manual-entry]").forEach(button=>button.addEventListener("click",openManualEntry));
 $("recordButton").addEventListener("click",startRecording);
 $("understandButton").addEventListener("click",understandTransaction);
 $("reviewForm").addEventListener("submit",saveTransaction);
