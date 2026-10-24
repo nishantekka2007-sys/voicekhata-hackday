@@ -430,7 +430,9 @@
                 <span class="review-step">3 SAVE</span>
               </div>
               <div class="review-fields">
-                <div class="review-field"><label for="rvCustomer">CUSTOMER NAME</label><input id="rvCustomer" placeholder="e.g. Ramesh Kumar"></div>
+                <div class="review-field" id="rvCustomerNameWrap"><label for="rvCustomer">CUSTOMER NAME</label><input id="rvCustomer" placeholder="e.g. Ram"></div>
+<div class="review-field" id="rvCustomerIdentityWrap"><label for="rvCustomerIdentity">IDENTIFY THIS CUSTOMER (REQUIRED FOR NEW CREDIT)</label><input id="rvCustomerIdentity" placeholder="e.g. phone last 4 digits / village / house"><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Same name? Add a unique detail so payments go to the right person.</small></div>
+<div class="review-field" id="rvExistingCustomerWrap" style="display:none"><label for="rvExistingCustomer">PAYMENT FROM WHICH CUSTOMER?</label><select id="rvExistingCustomer"><option value="">Choose the exact customer</option></select><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Choose the existing customer; do not type only a name.</small></div>
                 <div class="review-field">
                   <label for="rvKind">TRANSACTION TYPE</label>
                   <select id="rvKind">
@@ -560,18 +562,36 @@ function showToast(msg) {
 }
 
 // ── Onboarding ────────────────────────────────────────────
+function refreshExistingCustomerOptions() {
+  const select = $("rvExistingCustomer");
+  if(!select) return;
+  const previous = select.value;
+  const list = customerSummaries().filter(c => c.balance > 0);
+  select.innerHTML = '<option value="">Choose the exact customer</option>' + list.map(c =>
+    '<option value="' + esc(c.customer) + '">' + esc(c.customer) + ' — due ' + esc(rupees(c.balance)) + '</option>'
+  ).join("");
+  if(list.some(c => c.customer === previous)) select.value = previous;
+}
+
 function updateReviewPaymentFields() {
   const kind = $("rvKind")?.value || "credit_sale";
-  const wrap = $("rvPaidNowWrap");
-  const paidInput = $("rvPaidNow");
-  const amount = Number($("rvAmount")?.value || 0);
-  const paid = Number(paidInput?.value || 0);
+  const isPayment = kind === "payment_received";
+  if($("rvCustomerNameWrap")) $("rvCustomerNameWrap").style.display = isPayment ? "none" : "";
+  if($("rvCustomerIdentityWrap")) $("rvCustomerIdentityWrap").style.display = kind === "credit_sale" ? "" : "none";
+  if($("rvExistingCustomerWrap")) $("rvExistingCustomerWrap").style.display = isPayment ? "" : "none";
+  if(isPayment) refreshExistingCustomerOptions();
+  const wrap = $("rvPaidNowWrap"), paidInput = $("rvPaidNow");
+  const amount = Number($("rvAmount")?.value || 0), paid = Number(paidInput?.value || 0);
   if(wrap) wrap.style.display = kind === "credit_sale" ? "" : "none";
   if(kind !== "credit_sale" && paidInput) paidInput.value = "0";
   const preview = $("rvBalancePreview");
   if(preview) {
-    if(kind !== "credit_sale") {
-      preview.textContent = "Payment received and shop expenses are saved as separate transactions.";
+    if(isPayment) {
+      const selected = customerSummaries().find(c => c.customer === $("rvExistingCustomer")?.value);
+      preview.textContent = selected ? `Outstanding balance for ${selected.customer}: ${rupees(selected.balance)}. Enter the repayment amount below.` : "Select the exact existing customer to record a repayment.";
+      preview.style.background = "#f3f8f4";
+    } else if(kind !== "credit_sale") {
+      preview.textContent = "Shop expenses are saved as separate transactions.";
       preview.style.background = "#f3f8f4";
     } else if(paid > amount) {
       preview.textContent = "The amount paid cannot be greater than the total bill.";
@@ -584,6 +604,7 @@ function updateReviewPaymentFields() {
 }
 
 $("rvKind").addEventListener("change", updateReviewPaymentFields);
+$("rvExistingCustomer").addEventListener("change", updateReviewPaymentFields);
 $("rvAmount").addEventListener("input", updateReviewPaymentFields);
 $("rvPaidNow").addEventListener("input", updateReviewPaymentFields);
 
@@ -934,6 +955,8 @@ function showReviewForm(parsed) {
   $("successFlash").style.display = "none";
   $("reviewForm").classList.remove("hidden");
   $("rvCustomer").value = parsed.customer || "";
+  $("rvCustomerIdentity").value = "";
+  $("rvExistingCustomer").value = "";
   $("rvKind").value = parsed.kind || "credit_sale";
   $("rvAmount").value = parsed.amount || "";
   $("rvPaidNow").value = parsed.paid_now || 0;
@@ -949,12 +972,28 @@ function discardReview() {
 }
 
 async function confirmAndSave() {
-  const customer = $("rvCustomer").value.trim();
   const kind = $("rvKind").value;
+  const typedName = $("rvCustomer").value.trim();
+  const identity = $("rvCustomerIdentity").value.trim();
+  const customer = kind === "payment_received" ? $("rvExistingCustomer").value : (kind === "credit_sale" && identity ? typedName + " · " + identity : typedName);
   const amount = Number($("rvAmount").value);
   const paidNow = kind === "credit_sale" ? Number($("rvPaidNow").value || 0) : 0;
   const note = $("rvNote").value.trim();
-  if (!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
+  if (!customer) {
+    showToast(kind === "payment_received" ? "Choose the exact existing customer." : "Please enter a customer name.");
+    if(kind === "payment_received") $("rvExistingCustomer").focus(); else $("rvCustomer").focus();
+    return;
+  }
+  if(kind === "credit_sale" && !identity) {
+    showToast("Add a unique identifier (phone last 4 digits, village, or house) to prevent mixing up customers with the same name.");
+    $("rvCustomerIdentity").focus();
+    return;
+  }
+  if(kind === "payment_received" && amount > (customerSummaries().find(c => c.customer === customer)?.balance || 0)) {
+    showToast("Payment is greater than this customer's outstanding balance. Check the selected customer and amount.");
+    $("rvAmount").focus();
+    return;
+  }
   if (!Number.isFinite(amount) || amount <= 0 || Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
     showToast("Enter a positive total amount with up to 2 decimal places."); $("rvAmount").focus(); return;
   }
