@@ -1,13 +1,6 @@
-HEAD
-
-HEAD
 # VoiceKhata
 
 **A voice-first digital khata for small shops and local vendors in India.**
-
-temp-dashboard
-# GemmaKhata — Voice-First Digital Ledger
-0c3eccb (feat: add complete MVP — FastAPI backend, speech engine, Chart.js dashboard, 3-screen frontend)
 
 VoiceKhata is a hackathon MVP that helps shopkeepers record customer credit sales and payments with a review-before-save workflow. The goal is to make everyday ledger entry easier using natural speech and a simple dashboard.
 
@@ -16,7 +9,7 @@ VoiceKhata is a hackathon MVP that helps shopkeepers record customer credit sale
 ## Links
 
 - **Repository:** https://github.com/nishantekka2007-sys/voicekhata-hackday
-- **Live website/demo:** Not deployed yet
+- **Live website/demo:** https://nishantekka2007-sys.github.io/voicekhata-hackday/ (available after GitHub Pages is enabled and the Pages workflow completes)
 - **API documentation (local):** http://127.0.0.1:8000/docs
 
 ## What it aims to do
@@ -45,7 +38,6 @@ For a credit sale, the remaining amount is calculated as **due amount − paid a
 ## Repository layout
 
 ```text
-<<<<<<< HEAD
 voicekhata-hackday/
 ├── backend/
 │   ├── main.py              # FastAPI routes, auth, SQLite, voice transcription
@@ -66,28 +58,6 @@ voicekhata-hackday/
 ├── .gitignore
 ├── LICENSE
 └── README.md
-=======
-gemma-khata/
-├── main.py             # FastAPI backend — REST API server                      [DONE]
-├── ledger.py           # SQLite schema, balance arithmetic, aggregate queries   [DONE]
-├── gemma_ai.py         # Gemma 4 E2B via Ollama — transaction extraction        [DONE]
-├── speech.py           # faster-whisper — audio to text transcription            [DONE]
-├── test_ledger.py      # Unit tests — database & financial logic (5 tests)     [DONE]
-├── test_gemma_ai.py    # Unit tests — AI extraction engine (17 tests)          [DONE]
-├── test_speech.py      # Unit tests — speech-to-text engine (22 tests)         [DONE]
-├── requirements.txt    # Python dependencies
-├── .gitignore
-├── templates/
-│   └── index.html      # Responsive 3-screen frontend                          [DONE]
-├── static/
-│   ├── style.css       # Mobile-first kirana-friendly UI                       [DONE]
-│   └── app.js          # Mic recording, Gemma cards, Chart.js dashboard        [DONE]
-└── data/
-    └── .gitkeep        # Auto-generated ledger.db lives here (git-ignored)
-<<<<<<< HEAD
-=======
->>>>>>> 0c3eccb (feat: add complete MVP — FastAPI backend, speech engine, Chart.js dashboard, 3-screen frontend)
->>>>>>> temp-dashboard
 ```
 
 The root-level prototype modules are retained for reference. The current web API entry point is backend/main.py.
@@ -98,19 +68,6 @@ The root-level prototype modules are retained for reference. The current web API
 
 Install:
 
-<<<<<<< HEAD
-## How It Works
-
-```
-Step 1: Shopkeeper speaks → "Ramesh ne 500 rupaye diye aur Suresh ko 200 ka chawal udhaar diya"
-Step 2: faster-whisper converts speech to text (Hindi/English/Marathi)
-Step 3: Gemma 4 E2B extracts structured transactions (names, amounts, types)
-Step 4: Shopkeeper reviews editable cards and confirms
-Step 5: SQLite saves transactions and updates balances instantly
-```
-
-=======
-<<<<<<< HEAD
 - Python 3.10 or newer
 - Git
 - FFmpeg
@@ -120,36 +77,6 @@ On macOS, install FFmpeg with Homebrew if needed:
 
 ```bash
 brew install ffmpeg
-=======
-## How It Works
-
-```
-Step 1: Shopkeeper speaks → "Ramesh ne 500 rupaye diye aur Suresh ko 200 ka chawal udhaar diya"
-Step 2: faster-whisper converts speech to text (Hindi/English/Marathi)
-Step 3: Gemma 4 E2B extracts structured transactions (names, amounts, types)
-Step 4: Shopkeeper reviews editable cards and confirms
-Step 5: SQLite saves transactions and updates balances instantly
-```
-
->>>>>>> temp-dashboard
-## Three Screens
-
-1. **Voice Entry** — Large mic button, language selector, transcription, Gemma extraction, editable transaction cards
-2. **Digital Ledger** — Customer search, balance display, transaction history modal
-3. **Quick Insights** — Chart.js 7-day trend bar chart, credit/payment doughnut chart, top debtors, AI summary
-
----
-
-## Setup & Run
-
-### Prerequisites
-```bash
-# 1. Install Ollama: https://ollama.com/download
-# 2. Pull Gemma 4 E2B
-ollama pull gemma4:e2b
-# 3. Start Ollama
-ollama serve
->>>>>>> 0c3eccb (feat: add complete MVP — FastAPI backend, speech engine, Chart.js dashboard, 3-screen frontend)
 ```
 
 ### 2. Clone the repository
@@ -159,30 +86,10 @@ git clone https://github.com/nishantekka2007-sys/voicekhata-hackday.git
 cd voicekhata-hackday
 ```
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
 To use the current Gemma voice-entry work before it is merged into main:
 
 ```bash
 git switch feat/gemma4-voice-entry
-=======
->>>>>>> temp-dashboard
-### Run the App
-```bash
-python main.py
-# Opens at http://localhost:8000
-```
-
-### Run All Tests (44 tests — works fully offline)
-```bash
-python test_ledger.py      # 5 tests
-python test_gemma_ai.py    # 17 tests
-python test_speech.py      # 22 tests
-<<<<<<< HEAD
-=======
->>>>>>> 0c3eccb (feat: add complete MVP — FastAPI backend, speech engine, Chart.js dashboard, 3-screen frontend)
->>>>>>> temp-dashboard
 ```
 
 ### 3. Create a virtual environment and install dependencies
@@ -196,9 +103,6 @@ python -m pip install --upgrade pip
 python -m pip install -r backend/requirements.txt
 ```
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
 ### 4. Configure Google sign-in
 
 Google sign-in is optional for starting the server, but authenticated ledger endpoints require a configured Google Web OAuth client.
@@ -317,26 +221,14 @@ See CONTRIBUTING.md for the collaboration workflow.
 ## License
 
 This project is licensed under the MIT License. See LICENSE.
-=======
->>>>>>> temp-dashboard
----
 
-## API Endpoints
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/` | Serves the web app |
-| GET | `/api/health` | Check Ollama & Whisper status |
-| POST | `/api/transcribe` | Audio → text (faster-whisper) |
-| POST | `/api/extract` | Text → transactions (Gemma AI) |
-| POST | `/api/transactions` | Save confirmed transactions |
-| GET | `/api/customers` | List all customers with balances |
-| GET | `/api/customers/{id}/transactions` | Customer transaction history |
-| GET | `/api/transactions/recent` | Recent transactions |
-| DELETE | `/api/transactions/{id}` | Delete a transaction |
-| GET | `/api/insights` | Dashboard data with Chart.js datasets |
-| POST | `/api/seed` | Seed sample kirana data |
-<<<<<<< HEAD
-=======
->>>>>>> 0c3eccb (feat: add complete MVP — FastAPI backend, speech engine, Chart.js dashboard, 3-screen frontend)
->>>>>>> temp-dashboard
+## Publish the frontend
+
+The frontend can be hosted as a static site with GitHub Pages. The workflow at `.github/workflows/pages.yml` publishes the `frontend/` directory when changes are pushed to `main`.
+
+In the repository settings, open **Pages**, choose **GitHub Actions** as the build and deployment source, and wait for the **Deploy VoiceKhata frontend** workflow to finish successfully. The website URL is:
+
+https://nishantekka2007-sys.github.io/voicekhata-hackday/
+
+This is the browser-based demo: shop setup, dashboard, browser speech recognition (where supported), and browser-local demo entries. Browser-local entries stay in that browser and are not synchronized to other devices. The Python API, server-side Gemma transcription, authenticated accounts, and persistent shared database are not publicly hosted by GitHub Pages; deploy the backend separately and configure its API URL, CORS origins, and secrets before presenting those features as online services.
