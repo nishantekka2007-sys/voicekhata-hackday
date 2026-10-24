@@ -68,11 +68,25 @@ function updateMetrics(){
 function renderChart(){
   const canvas=$("moneyChart");if(!canvas||!window.Chart)return;
   if(chartInstance)chartInstance.destroy();
+  const ordered=[...transactions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
   const isMonth=$("chartRange").value==="month";
-  const labels=isMonth?["Week 1","Week 2","Week 3","Week 4"]:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  const credit=isMonth?[6200,8100,5600,9200]:[1200,2100,950,2700,1850,3400,1600];
-  const payment=isMonth?[4200,6900,7300,6100]:[800,1500,1700,1200,3200,2300,1900];
-  chartInstance=new Chart(canvas,{type:"line",data:{labels,datasets:[{label:"Credit given",data:credit,borderColor:"#2f7157",backgroundColor:"rgba(47,113,87,.08)",borderWidth:2,pointRadius:3,pointBackgroundColor:"#2f7157",fill:true,tension:.36},{label:"Payments collected",data:payment,borderColor:"#e6b777",backgroundColor:"rgba(230,183,119,.04)",borderWidth:2,pointRadius:3,pointBackgroundColor:"#e6b777",fill:false,tension:.36}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:context=>context.dataset.label+": "+rupees(context.raw)}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{color:"#9aa59e",font:{family:"DM Sans",size:10}}},y:{beginAtZero:true,grid:{color:"#eff3ef"},border:{display:false},ticks:{color:"#9aa59e",font:{family:"DM Sans",size:9},callback:value=>value>=1000?"₹"+value/1000+"k":"₹"+value}}}}});
+  const now=new Date();
+  const points=[];
+  const dayCount=isMonth?30:7;
+  for(let offset=dayCount-1;offset>=0;offset--){
+    const day=new Date(now);day.setHours(0,0,0,0);day.setDate(day.getDate()-offset);
+    const key=day.toDateString();
+    const rows=ordered.filter(item=>new Date(item.created_at).toDateString()===key);
+    points.push({
+      label:isMonth?day.toLocaleDateString("en-IN",{day:"numeric",month:"short"}):day.toLocaleDateString("en-IN",{weekday:"short"}),
+      credit:rows.filter(item=>item.kind==="credit_sale").reduce((sum,item)=>sum+Number(item.amount),0),
+      payments:rows.filter(item=>item.kind==="payment_received").reduce((sum,item)=>sum+Number(item.amount),0)
+    });
+  }
+  const labels=points.map(point=>point.label);
+  const credit=points.map(point=>point.credit);
+  const payment=points.map(point=>point.payments);
+  chartInstance=new Chart(canvas,{type:"line",data:{labels,datasets:[{label:"Credit given",data:credit,borderColor:"#2f7157",backgroundColor:"rgba(47,113,87,.08)",borderWidth:2,pointRadius:3,pointBackgroundColor:"#2f7157",fill:true,tension:.36},{label:"Payments collected",data:payment,borderColor:"#e6b777",backgroundColor:"rgba(230,183,119,.04)",borderWidth:2,pointRadius:3,pointBackgroundColor:"#e6b777",fill:false,tension:.36}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:context=>context.dataset.label+": "+rupees(context.raw)}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{color:"#9aa59e",font:{family:"DM Sans",size:10},maxTicksLimit:isMonth?10:7}},y:{beginAtZero:true,grid:{color:"#eff3ef"},border:{display:false},ticks:{color:"#9aa59e",font:{family:"DM Sans",size:9},callback:value=>value>=1000?"₹"+value/1000+"k":"₹"+value}}}}});
 }
 function renderAll(){renderTransactions();renderCustomers();updateMetrics();renderChart();}
 function navigate(view){
@@ -106,6 +120,13 @@ async function loadFromBackend(){
     const rows=Array.isArray(data)?data:(data.transactions||data.items||[]);
     transactions=rows.map(normalizeTransaction);
     demoMode=false;
+    try {
+      const summary=await authRequest("/summary");
+      $("totalDue").textContent=rupees(summary.total_due);
+      $("collectedToday").textContent=rupees(summary.collected_today);
+      $("creditToday").textContent=rupees(summary.credit_today);
+      $("activeCustomers").textContent=String(summary.active_customers);
+    } catch (summaryError) { console.info("Summary endpoint unavailable; calculating visible totals locally."); }
     const banner=$("modeBanner");
     if(banner){
       banner.innerHTML='<span class="status-dot" style="background:#419467"></span><span><strong>Connected securely</strong> — this is your private ledger.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button>';
