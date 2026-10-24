@@ -260,7 +260,7 @@
       </div>
       <button class="btn-primary" type="submit">Get started →</button>
     </form>
-    <p class="ob-note">Preview entries are stored in this browser. Sign in after setup to sync new entries to your private backend ledger.</p>
+    <p class="ob-note">You can use this app without an account. Entries stay in this browser. Google sign-in and device sync require a separately hosted backend.</p>
   </div>
 </div>
 
@@ -381,7 +381,7 @@
                 <option value="hi-IN">🇮🇳 Hindi</option>
                 <option value="en-IN">🇬🇧 English</option>
                 <option value="mr-IN">🇮🇳 Marathi</option>
-                <option value="en-IN" id="autoLangOpt">🌐 Hinglish / Auto</option>
+                <option value="auto" id="autoLangOpt">🌐 Hinglish / Auto detect</option>
               </select>
             </div>
             <div class="stt-not-supported" id="sttNotSupported">
@@ -540,6 +540,7 @@ function dateTime(v) {
   return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short"}) + " · " + d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
 }
 
+function localDateKey(date) {\n  const d = new Date(date);\n  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');\n}\n
 function toneClass(i) { return "t" + (i % 4); }
 
 // ── Toast ─────────────────────────────────────────────────
@@ -688,7 +689,7 @@ function renderChart() {
   const canvas = $("flowChart");
   if(!canvas || !window.Chart) return;
   const days = Array.from({length:7},(_,i) => {
-    const d = new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().slice(0,10);
+    const d = new Date(); d.setDate(d.getDate()-6+i); return localDateKey(d);
   });
   const credit = days.map(d => transactions.filter(t=>t.kind==="credit_sale"&&t.created_at.startsWith(d)).reduce((s,t)=>s+Number(t.amount),0));
   const payments = days.map(d => transactions.filter(t=>t.kind==="payment_received"&&t.created_at.startsWith(d)).reduce((s,t)=>s+Number(t.amount),0));
@@ -792,40 +793,7 @@ async function deleteTransaction(id) {
 
 // ── NLP Parser ────────────────────────────────────────────
 function parseTransactionText(text) {
-  const orig = text.trim();
-  const lower = orig.toLowerCase();
-
-  // Amount extraction
-  let amount = 0;
-  const amountPatterns = [
-    /₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/,
-    /([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)/i,
-    /([0-9,]+(?:\.[0-9]{1,2})?)/,
-  ];
-  for(const p of amountPatterns) {
-    const m = lower.match(p);
-    if(m) { amount = parseFloat(m[1].replace(/,/g,"")); break; }
-  }
-
-  // Kind detection
-  const paymentWords = /\b(diye|diya|deta|dia|paid|payment|returned|wapas|collected|mila|ne\s+diye|ne\s+diya|settled|repaid|jama)\b/i;
-  const expenseWords = /\b(kharcha|kharche|expense|shop\s+expense|bijli|rent|purchase|shopkeeper|bill|electricity|kharid)\b/i;
-  let kind = "credit_sale";
-  if(paymentWords.test(lower)) kind = "payment_received";
-  if(expenseWords.test(lower)) kind = "cash_expense";
-
-  // Customer extraction
-  let ct = orig;
-  // remove amount
-  ct = ct.replace(/₹\s*[0-9,]+(?:\.[0-9]{1,2})?/g, " ");
-  ct = ct.replace(/[0-9,]+(?:\.[0-9]{1,2})?\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)?/gi, " ");
-  // remove filler words
-  ct = ct.replace(/\b(ne|ko|se|ka|ki|ke|liye|liya|diye|diya|deta|dia|paid|payment|credit|udhaar|udhar|took|gave|give|taken|on|for|to|from|the|a|an|me|rupaye|rupee|wapas|returned|collected|jama|settled|repaid|kharcha|expense|bill|mila|aur|and|hai)\b/gi, " ");
-  ct = ct.replace(/[₹,:।!?]/g, " ").replace(/\s+/g, " ").trim();
-  const words = ct.split(" ").filter(w=>w.length>1);
-  const customer = words.slice(0,2).join(" ").trim() || (kind==="cash_expense" ? "Shop Expense" : "");
-
-  return { customer, kind, amount, note: orig, requires_confirmation: true };
+  return window.VoiceKhataParser.parse(text);
 }
 
 // ── Web Speech API ────────────────────────────────────────
@@ -879,6 +847,7 @@ async function parseCurrentText() {
     } else {
       parsed = parseTransactionText(text);
     }
+    if (parsed?.error) throw new Error(parsed.error);
     if (parsed) showReviewForm(parsed);
   } catch (error) {
     showToast("Could not prepare transaction: " + error.message + ". Nothing was saved.");
@@ -894,6 +863,7 @@ function showReviewForm(parsed) {
   $("rvKind").value = parsed.kind || "credit_sale";
   $("rvAmount").value = parsed.amount || "";
   $("rvNote").value = parsed.note || "";
+  if (parsed.review_warning) showToast(parsed.review_warning);
 }
 
 function discardReview() {
@@ -962,6 +932,7 @@ function recordAnother() {
   }
 })();
 </script>
+<script src="transaction-parser.js"></script>
 <script src="config.js"></script>
 <script src="cloud.js"></script>
 <script type="module" src="whisper-stt.js"></script>
