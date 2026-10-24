@@ -550,6 +550,55 @@ body{font-family:"DM Sans",sans-serif;background:#f5f8f6;color:#182c26}
 @media(max-width:1050px){.vk-entry-layout{grid-template-columns:minmax(0,1fr)}.vk-entry-rail{grid-template-columns:repeat(2,minmax(0,1fr))}.vk-summary-card{grid-column:1/-1}.vk-summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:650px){.vk-entry-rail{grid-template-columns:1fr}.vk-summary-card{grid-column:auto}.vk-summary-grid{grid-template-columns:1fr 1fr}#view-voice .page-head{min-height:175px!important;padding:20px!important}#view-voice .voice-layout{grid-template-columns:1fr}.vk-entry-layout{gap:12px}}
 
+
+/* Consistent professional design system across every workspace page */
+#app{background:linear-gradient(135deg,#f4faf7 0%,#f5f8ff 100%)}
+.sidebar{background:linear-gradient(180deg,#f0faf5 0%,#fff 43%,#f2f9f6 100%)!important;border-right:1px solid #dfece5!important}
+.brand-mark{background:linear-gradient(145deg,#1bc47d,#08714e)!important;box-shadow:0 7px 18px #07865b25}
+.brand-copy strong{font-size:20px!important;letter-spacing:-1px!important}
+.shop-badge{background:linear-gradient(120deg,#fff,#f2fbf6)!important;border-color:#deeee4!important;border-radius:14px!important}
+.nav-btn{border-radius:12px!important;min-height:43px!important}.nav-btn.active{background:linear-gradient(100deg,#dff7e9,#c7f0dc)!important;color:#075c3d!important;box-shadow:inset 3px 0 #0ba66a!important}
+.main{background:transparent}.topbar{position:sticky;top:0;z-index:15;display:flex;gap:15px;height:72px;padding:0 24px!important;background:rgba(255,255,255,.9)!important;backdrop-filter:blur(18px);box-shadow:0 3px 15px #163e2a06}
+.vk-global-search{height:40px;max-width:510px;min-width:170px;flex:1;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px solid #dce7e0;border-radius:11px;background:#fff;color:#526a5e}.vk-global-search>span{font-size:24px;line-height:1}.vk-global-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;font-size:12px;color:#21382c}.vk-global-search kbd{font-size:10px;color:#73857b;background:#f4f7f5;border:1px solid #e4ebe6;border-radius:5px;padding:3px 5px}
+.topbar-right{gap:10px!important}.vk-calendar{font-size:20px;color:#254638}.vk-top-avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:linear-gradient(140deg,#f4d5f1,#e9c1e3);color:#8d377e;font-size:12px;font-weight:800}.vk-top-profile{display:flex;flex-direction:column;gap:3px;min-width:82px}.vk-top-profile strong{font-size:11px;color:#20392d}.vk-top-profile small{font-size:10px;color:#7d8d83}
+.content{padding:24px 25px 36px!important}
+#view-dashboard .page-head{min-height:190px!important;padding:29px!important;border-radius:19px!important;background:linear-gradient(90deg,rgba(8,40,29,.93) 0%,rgba(8,40,29,.76) 38%,rgba(8,40,29,.08) 100%),url('https://images.unsplash.com/photo-1604719312566-8912e9c8a9e7?auto=format&fit=crop&w=1500&q=90') center 48%/cover no-repeat!important}
+#view-dashboard .page-head h1{color:#fff!important;font-size:clamp(32px,3vw,44px)!important}
+#view-dashboard .page-head .eyebrow{color:#9af1be!important}
+#view-dashboard .page-head p:not(.eyebrow){color:#f2fff7!important}
+#view-dashboard .panel[style*="margin-bottom:16px"]{border-radius:15px!important;border-color:#e0eee5!important;background:linear-gradient(110deg,#fff,#f7fffa)!important}
+#view-dashboard .content-grid{grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr)!important}
+#view-dashboard .panel,#view-ledger .panel,#view-customers .customer-card,#view-due-payments .panel{border-radius:16px!important;background:#fff!important;border:1px solid #e1ece5!important;box-shadow:0 7px 24px #153f2a0b!important}
+#view-dashboard .metric-card{min-height:128px;position:relative;overflow:hidden}
+#view-dashboard .metric-card:after{content:"";position:absolute;right:-27px;bottom:-45px;width:105px;height:105px;border-radius:50%;background:#ffffff65;pointer-events:none}
+#view-dashboard .metric-card:nth-child(1){border-top:3px solid #22b573!important}
+#view-dashboard .metric-card:nth-child(2){border-top:3px solid #5296ef!important}
+#view-dashboard .metric-card:nth-child(3){border-top:3px solid #f4b640!important}
+#view-dashboard .metric-card:nth-child(4){border-top:3px solid #a78af2!important}
+#view-ledger .page-head{min-height:150px!important;background:linear-gradient(90deg,#e5f8ed 0%,#fff 56%,#edf3ff 100%)!important}
+#view-ledger .page-head:after{content:"Search, filter, review and export your transaction history";display:block;margin-top:12px;font-size:12px;color:#536c60}
+#view-customers .page-head{min-height:160px!important;background:linear-gradient(90deg,rgba(255,247,230,.96),rgba(255,255,255,.9) 50%,rgba(255,255,255,.15)),url('https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&w=1300&q=85') center 52%/cover no-repeat!important}
+#view-customers .page-head:after{content:"Keep every customer account clear, organized and easy to find";display:block;margin-top:10px;font-size:12px;color:#536c60}
+#view-customers #custSearch{max-width:520px;height:45px;margin-bottom:18px!important;background:#fff;border-radius:12px!important}
+#view-customers .customer-grid{gap:14px}
+#view-customers .customer-card{padding:18px!important;transition:transform .18s,box-shadow .18s}
+#view-customers .customer-card:hover{transform:translateY(-3px);box-shadow:0 13px 27px #163e2a14!important}
+#view-due-payments .page-head{min-height:160px!important;background:linear-gradient(90deg,rgba(255,241,229,.96),rgba(255,255,255,.9) 55%,rgba(255,255,255,.2)),url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1300&q=85') center 48%/cover no-repeat!important}
+#view-due-payments .page-head h1{color:#25392f!important}
+#view-due-payments .content-grid{align-items:start}
+#view-due-payments .panel-head h2{font-size:16px}
+#view-due-payments #dueCustomerBalance{border-radius:12px!important;background:linear-gradient(110deg,#edf9f1,#f5fbf7)!important;border:1px solid #dcefe3}
+#view-ledger table thead{background:#f4faf6}
+#view-ledger th{padding-top:14px!important;padding-bottom:14px!important}
+#view-ledger td{padding-top:13px!important;padding-bottom:13px!important}
+#view-ledger tbody tr:hover,#view-dashboard tbody tr:hover{background:#f6fbf8}
+#view-ledger .search-input{min-height:40px}
+#view-voice .page-head{min-height:200px!important}
+.toast{border-radius:12px}
+@media(max-width:1050px){.vk-global-search{max-width:340px}.vk-top-profile{display:none}#view-dashboard .content-grid{grid-template-columns:1fr!important}}
+@media(max-width:800px){.topbar{padding:0 15px!important;gap:10px}.vk-global-search{max-width:none}.vk-global-search kbd,.vk-calendar{display:none}.content{padding:17px!important}.topbar-right{margin-left:auto}.today-label{font-size:10px}}
+@media(max-width:520px){.vk-global-search{height:36px;min-width:80px;padding:0 8px}.vk-global-search input{font-size:10px}.vk-top-avatar{width:31px;height:31px}.topbar{gap:7px}.breadcrumb{display:none}.content{padding:12px!important}#view-dashboard .page-head,#view-customers .page-head,#view-due-payments .page-head{min-height:140px!important;padding:18px!important}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
 </style>
 </head>
 <body>
@@ -624,8 +673,11 @@ body{font-family:"DM Sans",sans-serif;background:#f5f8f6;color:#182c26}
     <div class="topbar">
       <button class="hamburger" onclick="toggleSidebar()">☰</button>
       <span class="breadcrumb" id="breadcrumb"><strong>Overview</strong></span>
+      <div class="vk-global-search"><span>⌕</span><input id="vkGlobalSearch" type="search" placeholder="Search customer by name or ID..." aria-label="Search customer by name or ID"><kbd>⌘K</kbd></div>
       <div class="topbar-right">
-        <span class="today-label" id="todayLabel"></span>
+        <span class="vk-calendar">▦</span><span class="today-label" id="todayLabel"></span>
+        <span class="vk-top-avatar" id="vkTopAvatar">VK</span>
+        <span class="vk-top-profile"><strong id="vkTopName">Shop owner</strong><small>Shop profile</small></span>
       </div>
     </div>
 
@@ -1792,6 +1844,34 @@ function recordAnother() {
   document.addEventListener("DOMContentLoaded",vkUpdateRail);
   window.addEventListener("load",vkUpdateRail);
   setTimeout(vkUpdateRail,700);
+})();
+</script>
+
+
+<script>
+(function(){
+ const input=document.getElementById("vkGlobalSearch");
+ if(input){
+   input.addEventListener("keydown",function(e){
+     if(e.key==="Enter"){
+       const q=input.value.trim();
+       if(!q)return;
+       if(typeof navigate==="function")navigate("customers");
+       const target=document.getElementById("custSearch");
+       if(target){target.value=q;if(typeof renderCustomers==="function")renderCustomers();target.focus();}
+     }
+     if(e.key==="Escape")input.value="";
+   });
+ }
+ const shopName=document.getElementById("shopNameSidebar");
+ const topName=document.getElementById("vkTopName");
+ const avatar=document.getElementById("vkTopAvatar");
+ function updateProfile(){
+   const name=(document.getElementById("shopOwnerSidebar")?.textContent||document.getElementById("profNameSidebar")?.textContent||"Shop owner").trim();
+   if(topName)topName.textContent=name;
+   if(avatar)avatar.textContent=name.split(/\s+/).slice(0,2).map(x=>x[0]||"").join("").toUpperCase()||"VK";
+ }
+ updateProfile();window.addEventListener("load",updateProfile);
 })();
 </script>
 
