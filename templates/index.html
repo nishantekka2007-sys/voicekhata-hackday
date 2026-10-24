@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GemmaKhata — Voice-First Digital Ledger</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ===== Top Header ===== -->
+<header class="app-header">
+    <div class="header-left">
+        <h1>📒 GemmaKhata</h1>
+        <span class="tagline">Voice-First Digital Ledger</span>
+    </div>
+    <div class="header-right">
+        <span class="ai-badge" id="aiBadge" title="AI Status">🤖 Checking...</span>
+    </div>
+</header>
+
+<!-- ===== Tab Navigation ===== -->
+<nav class="tab-nav">
+    <button class="tab-btn active" data-tab="voice" onclick="switchTab('voice')">
+        🎙️ <span>Voice Entry</span>
+    </button>
+    <button class="tab-btn" data-tab="ledger" onclick="switchTab('ledger')">
+        📋 <span>Ledger</span>
+    </button>
+    <button class="tab-btn" data-tab="insights" onclick="switchTab('insights')">
+        📊 <span>Insights</span>
+    </button>
+</nav>
+
+<!-- ================================================================ -->
+<!-- SCREEN 1: Voice Entry                                            -->
+<!-- ================================================================ -->
+<section id="tab-voice" class="tab-content active">
+
+    <!-- Language Selector -->
+    <div class="lang-selector">
+        <label>Language:</label>
+        <select id="langSelect">
+            <option value="hi" selected>🇮🇳 Hindi</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="mr">🇮🇳 Marathi</option>
+            <option value="auto">🌐 Auto-detect</option>
+        </select>
+    </div>
+
+    <!-- Microphone Button -->
+    <div class="mic-area">
+        <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
+            <span class="mic-icon" id="micIcon">🎙️</span>
+        </button>
+        <p class="mic-label" id="micLabel">Tap to speak</p>
+        <div class="recording-pulse" id="recordingPulse" style="display:none;">
+            <div class="pulse-ring"></div>
+            <span>🔴 Recording... Tap again to stop</span>
+        </div>
+    </div>
+
+    <!-- Transcription Result -->
+    <div class="transcription-box" id="transcriptionBox" style="display:none;">
+        <h3>📝 Transcribed Text</h3>
+        <textarea id="transcribedText" rows="3" placeholder="Transcribed text will appear here..."></textarea>
+        <div class="transcription-meta" id="transcriptionMeta"></div>
+        <button class="btn btn-primary" onclick="extractTransactions()">
+            🤖 Extract Transactions with Gemma
+        </button>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loader" id="loader" style="display:none;">
+        <div class="spinner"></div>
+        <p id="loaderText">Processing...</p>
+    </div>
+
+    <!-- Extracted Transactions Preview (Editable Cards) -->
+    <div id="transactionCards" style="display:none;">
+        <h3>✏️ Review & Edit Transactions</h3>
+        <p class="hint">Edit any field before confirming. Nothing is saved until you approve.</p>
+        <div id="cardContainer"></div>
+        <div class="confirm-area">
+            <button class="btn btn-success" onclick="confirmAndSave()">
+                ✅ Confirm & Save All
+            </button>
+            <button class="btn btn-ghost" onclick="clearVoiceEntry()">
+                🗑️ Discard
+            </button>
+        </div>
+    </div>
+
+    <!-- Success Message -->
+    <div class="success-msg" id="successMsg" style="display:none;">
+        <span class="success-icon">✅</span>
+        <p>Transactions saved successfully!</p>
+        <button class="btn btn-ghost" onclick="clearVoiceEntry()">Record Another</button>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- SCREEN 2: Digital Ledger                                         -->
+<!-- ================================================================ -->
+<section id="tab-ledger" class="tab-content">
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+        <input type="text" id="customerSearch" placeholder="🔍 Search customer name or phone..."
+               oninput="searchCustomers()">
+    </div>
+
+    <!-- Customer List -->
+    <div class="customer-list" id="customerList">
+        <div class="empty-state">
+            <span>📋</span>
+            <p>No customers yet. Record a transaction to get started!</p>
+        </div>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div class="modal-overlay" id="customerModal" style="display:none;" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modalCustomerName">Customer</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-balance" id="modalBalance"></div>
+            <div class="modal-transactions" id="modalTransactions"></div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- SCREEN 3: Quick Insights (Chart.js Dashboard)                    -->
+<!-- ================================================================ -->
+<section id="tab-insights" class="tab-content">
+
+    <!-- Summary Cards Row -->
+    <div class="insight-cards">
+        <div class="insight-card credit-card">
+            <span class="insight-label">Total Udhaar</span>
+            <span class="insight-value" id="totalCredit">₹0</span>
+        </div>
+        <div class="insight-card payment-card">
+            <span class="insight-label">Payments Collected</span>
+            <span class="insight-value" id="totalPayment">₹0</span>
+        </div>
+        <div class="insight-card outstanding-card">
+            <span class="insight-label">Pending (Baaki)</span>
+            <span class="insight-value" id="netOutstanding">₹0</span>
+        </div>
+    </div>
+
+    <!-- Today's Stats -->
+    <div class="today-stats">
+        <h3>📅 Today</h3>
+        <div class="today-row">
+            <div class="today-item">
+                <span class="today-label">Credit</span>
+                <span class="today-val text-red" id="todayCredit">₹0</span>
+            </div>
+            <div class="today-item">
+                <span class="today-label">Payments</span>
+                <span class="today-val text-green" id="todayPayment">₹0</span>
+            </div>
+            <div class="today-item">
+                <span class="today-label">Transactions</span>
+                <span class="today-val" id="todayTxCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js — Credit vs Payments (7-Day Trend) -->
+    <div class="chart-container">
+        <h3>📈 7-Day Trend</h3>
+        <canvas id="trendChart" height="220"></canvas>
+    </div>
+
+    <!-- Chart.js — Doughnut: Credit vs Payment Split -->
+    <div class="chart-container">
+        <h3>🍩 Credit vs Payments</h3>
+        <canvas id="splitChart" height="220"></canvas>
+    </div>
+
+    <!-- Top Debtors -->
+    <div class="top-debtors">
+        <h3>💸 Top Pending (Sabse Zyada Baaki)</h3>
+        <div id="debtorList" class="debtor-list"></div>
+    </div>
+
+    <!-- AI Summary -->
+    <div class="ai-summary">
+        <h3>🤖 AI Summary</h3>
+        <p id="aiSummary">Loading summary...</p>
+    </div>
+
+</section>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

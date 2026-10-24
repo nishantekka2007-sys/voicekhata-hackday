@@ -1,0 +1,582 @@
+/* ================================================================
+   GemmaKhata — style.css
+   Mobile-first responsive design for kirana store owners
+   ================================================================ */
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #f5f0eb;
+    --card: #ffffff;
+    --primary: #2d6a4f;
+    --primary-light: #40916c;
+    --accent: #e76f51;
+    --credit-red: #d62828;
+    --payment-green: #2d6a4f;
+    --text: #1b1b1b;
+    --text-muted: #6c757d;
+    --border: #dee2e6;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+
+.app-header h1 { font-size: 1.4rem; font-weight: 700; }
+.tagline { font-size: 0.75rem; opacity: 0.85; display: block; }
+
+.ai-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* ---------- Tab Navigation ---------- */
+.tab-nav {
+    display: flex;
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 64px;
+    z-index: 99;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: rgba(45,106,79,0.05);
+}
+
+.tab-btn:hover { background: rgba(45,106,79,0.08); }
+
+/* ---------- Tab Content ---------- */
+.tab-content { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+.tab-content.active { display: block; }
+
+/* ---------- Language Selector ---------- */
+.lang-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.lang-selector label { font-weight: 600; font-size: 0.9rem; }
+
+.lang-selector select {
+    padding: 8px 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--card);
+    flex: 1;
+}
+
+/* ---------- Microphone Area ---------- */
+.mic-area {
+    text-align: center;
+    padding: 30px 0;
+}
+
+.mic-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid var(--primary);
+    background: var(--card);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(45,106,79,0.2);
+}
+
+.mic-btn:hover { transform: scale(1.05); box-shadow: 0 6px 30px rgba(45,106,79,0.3); }
+
+.mic-btn.recording {
+    border-color: var(--accent);
+    background: #fff5f2;
+    animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(231,111,81,0.4); }
+    50% { box-shadow: 0 0 0 15px rgba(231,111,81,0); }
+}
+
+.mic-icon { font-size: 3rem; }
+.mic-label { margin-top: 12px; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
+
+.recording-pulse {
+    margin-top: 12px;
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* ---------- Transcription Box ---------- */
+.transcription-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 16px 0;
+    box-shadow: var(--shadow);
+}
+
+.transcription-box h3 { font-size: 1rem; margin-bottom: 10px; }
+
+.transcription-box textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: var(--font);
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.transcription-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 8px 0 12px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary { background: var(--primary); color: white; width: 100%; justify-content: center; }
+.btn-primary:hover { background: var(--primary-light); }
+
+.btn-success { background: #2d6a4f; color: white; flex: 1; justify-content: center; }
+.btn-success:hover { background: #40916c; }
+
+.btn-ghost {
+    background: none;
+    color: var(--text-muted);
+    border: 2px solid var(--border);
+    flex: 1;
+    justify-content: center;
+}
+.btn-ghost:hover { background: #f8f9fa; }
+
+.confirm-area { display: flex; gap: 10px; margin-top: 16px; }
+
+/* ---------- Transaction Cards ---------- */
+#transactionCards {
+    margin-top: 16px;
+}
+
+#transactionCards h3 { font-size: 1rem; margin-bottom: 4px; }
+.hint { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.tx-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--primary);
+}
+
+.tx-card.credit { border-left-color: var(--credit-red); }
+.tx-card.payment { border-left-color: var(--payment-green); }
+
+.tx-card .card-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.tx-card .card-field {
+    flex: 1;
+}
+
+.tx-card .card-field label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.tx-card .card-field input,
+.tx-card .card-field select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: var(--font);
+}
+
+.tx-card .card-field input.missing {
+    border-color: var(--accent);
+    background: #fff5f2;
+}
+
+.tx-card .missing-badge {
+    background: #fff3cd;
+    color: #856404;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* ---------- Loader ---------- */
+.loader {
+    text-align: center;
+    padding: 30px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader p { color: var(--text-muted); font-size: 0.9rem; }
+
+/* ---------- Success Message ---------- */
+.success-msg {
+    text-align: center;
+    padding: 30px;
+    background: #d4edda;
+    border-radius: var(--radius);
+    margin: 16px 0;
+}
+
+.success-icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+.success-msg p { font-weight: 600; color: #155724; margin-bottom: 12px; }
+
+/* ================================================================
+   SCREEN 2: Digital Ledger
+   ================================================================ */
+.search-bar {
+    margin-bottom: 16px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 1rem;
+    background: var(--card);
+}
+
+.customer-list { display: flex; flex-direction: column; gap: 10px; }
+
+.customer-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.customer-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+.cust-info h4 { font-size: 1rem; margin-bottom: 2px; }
+.cust-info .cust-meta { font-size: 0.75rem; color: var(--text-muted); }
+
+.cust-balance { text-align: right; }
+.cust-balance .amount { font-size: 1.1rem; font-weight: 700; }
+.cust-balance .amount.pending { color: var(--credit-red); }
+.cust-balance .amount.settled { color: var(--payment-green); }
+.cust-balance .amount.advance { color: #0077b6; }
+
+.cust-balance .status-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
+.status-tag.pending { background: #f8d7da; color: #721c24; }
+.status-tag.settled { background: #d4edda; color: #155724; }
+.status-tag.advance { background: #d1ecf1; color: #0c5460; }
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+.empty-state span { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+
+/* ---------- Customer Detail Modal ---------- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 200;
+}
+
+.modal-content {
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 20px;
+    animation: slide-up 0.3s ease;
+}
+
+@keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.modal-header h3 { font-size: 1.2rem; }
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px 8px;
+}
+
+.modal-balance {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+}
+
+.modal-balance .bal-item { flex: 1; }
+.modal-balance .bal-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+.modal-balance .bal-val { font-size: 1.1rem; font-weight: 700; }
+
+.modal-transactions h4 { font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted); }
+
+.tx-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.tx-row:last-child { border-bottom: none; }
+
+.tx-row .tx-left .tx-type {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.tx-type.credit { background: #f8d7da; color: #721c24; }
+.tx-type.payment { background: #d4edda; color: #155724; }
+
+.tx-row .tx-left .tx-item { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+.tx-row .tx-right { text-align: right; }
+.tx-row .tx-right .tx-amount { font-weight: 700; font-size: 1rem; }
+.tx-row .tx-right .tx-date { font-size: 0.7rem; color: var(--text-muted); }
+
+/* ================================================================
+   SCREEN 3: Quick Insights Dashboard
+   ================================================================ */
+.insight-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.insight-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.insight-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.insight-value {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+
+.credit-card .insight-value { color: var(--credit-red); }
+.payment-card .insight-value { color: var(--payment-green); }
+.outstanding-card { background: #fff3cd; }
+.outstanding-card .insight-value { color: #856404; }
+
+/* Today Stats */
+.today-stats {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+}
+
+.today-stats h3 { font-size: 0.95rem; margin-bottom: 10px; }
+
+.today-row {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+}
+
+.today-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: block; }
+.today-val { font-size: 1.1rem; font-weight: 700; display: block; }
+.text-red { color: var(--credit-red); }
+.text-green { color: var(--payment-green); }
+
+/* Charts */
+.chart-container {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+}
+
+.chart-container h3 { font-size: 0.95rem; margin-bottom: 12px; }
+
+/* Top Debtors */
+.top-debtors {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+}
+
+.top-debtors h3 { font-size: 0.95rem; margin-bottom: 12px; }
+
+.debtor-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.debtor-row:last-child { border-bottom: none; }
+.debtor-row .debtor-name { font-weight: 600; }
+.debtor-row .debtor-amount { font-weight: 700; color: var(--credit-red); }
+
+/* AI Summary */
+.ai-summary {
+    background: linear-gradient(135deg, #f0fff4, #e6f7ff);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #b7eb8f;
+}
+
+.ai-summary h3 { font-size: 0.95rem; margin-bottom: 8px; }
+.ai-summary p { font-size: 0.9rem; line-height: 1.6; color: #333; }
+
+/* ---------- Responsive (larger screens) ---------- */
+@media (min-width: 768px) {
+    .app-header { padding: 16px 32px; }
+    .tab-content { padding: 24px; }
+    .mic-btn { width: 140px; height: 140px; }
+    .mic-icon { font-size: 3.5rem; }
+    .insight-cards { gap: 16px; }
+    .insight-value { font-size: 1.5rem; }
+}

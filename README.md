@@ -1,4 +1,3 @@
-
 # GemmaKhata — Voice-First Digital Ledger
 
 A multilingual, voice-first digital ledger web application for micro-vendors, kirana store owners, and local artisans in India. Vendors speak naturally in Hindi, English, Hinglish, or Marathi to record customer credit (*udhaar*), payments (*jama*), and instantly view balances and financial summaries.
@@ -9,23 +8,22 @@ A multilingual, voice-first digital ledger web application for micro-vendors, ki
 
 ```text
 gemma-khata/
-├── ledger.py           # SQLite schema, balance arithmetic, aggregate queries     [DONE]
-├── gemma_ai.py         # Gemma 4 E2B via Ollama — transaction extraction           [DONE]
-├── test_ledger.py      # Unit tests for database and financial logic               [DONE]
-├── test_gemma_ai.py    # Unit tests for AI extraction engine (works offline)       [DONE]
+├── main.py             # FastAPI backend — REST API server                      [DONE]
+├── ledger.py           # SQLite schema, balance arithmetic, aggregate queries   [DONE]
+├── gemma_ai.py         # Gemma 4 E2B via Ollama — transaction extraction        [DONE]
+├── speech.py           # faster-whisper — audio to text transcription            [DONE]
+├── test_ledger.py      # Unit tests — database & financial logic (5 tests)     [DONE]
+├── test_gemma_ai.py    # Unit tests — AI extraction engine (17 tests)          [DONE]
+├── test_speech.py      # Unit tests — speech-to-text engine (22 tests)         [DONE]
 ├── requirements.txt    # Python dependencies
 ├── .gitignore
-├── data/
-│   └── .gitkeep        # Auto-generated ledger.db lives here (git-ignored)
-│
-│   ── Coming next ──
-├── speech.py           # faster-whisper audio → text processor
-├── main.py             # FastAPI REST API endpoints
 ├── templates/
-│   └── index.html      # Responsive 3-screen frontend
-└── static/
-    ├── style.css       # Kirana-friendly UI styles
-    └── app.js          # Mic recording, confirmation cards, Chart.js
+│   └── index.html      # Responsive 3-screen frontend                          [DONE]
+├── static/
+│   ├── style.css       # Mobile-first kirana-friendly UI                       [DONE]
+│   └── app.js          # Mic recording, Gemma cards, Chart.js dashboard        [DONE]
+└── data/
+    └── .gitkeep        # Auto-generated ledger.db lives here (git-ignored)
 ```
 
 ---
@@ -43,22 +41,21 @@ gemma-khata/
 
 ---
 
-## Modules Complete
+## How It Works
 
-### 1. `ledger.py` — SQLite Database Engine
-- Relational schema: `customers` + `transactions` tables with WAL mode and FK cascading
-- Case-insensitive customer deduplication (`"ramesh"` == `"Ramesh"`)
-- Atomic multi-transaction batching (one voice recording → multiple DB writes)
-- Balance = Credit (Udhaar) - Payment (Jama) → Pending / Settled / Advance
-- Insights API: all-time totals, today's transactions, top debtors, 7-day Chart.js dataset
+```
+Step 1: Shopkeeper speaks → "Ramesh ne 500 rupaye diye aur Suresh ko 200 ka chawal udhaar diya"
+Step 2: faster-whisper converts speech to text (Hindi/English/Marathi)
+Step 3: Gemma 4 E2B extracts structured transactions (names, amounts, types)
+Step 4: Shopkeeper reviews editable cards and confirms
+Step 5: SQLite saves transactions and updates balances instantly
+```
 
-### 2. `gemma_ai.py` — Gemma 4 E2B AI Engine
-- Sends transcribed voice text to `gemma4:e2b` via Ollama
-- Extracts multiple transactions from one Hindi/English/Hinglish sentence
-- Normalizes Hindi type words: `udhaar` → `credit`, `jama` → `payment`
-- Marks missing fields (`amount`, `customer_name`) as `needs_confirmation: true`
-- Handles markdown-fenced JSON, single objects, and has a regex fallback
-- `get_ledger_summary()` generates friendly Hindi/English financial summaries for Screen 3
+## Three Screens
+
+1. **Voice Entry** — Large mic button, language selector, transcription, Gemma extraction, editable transaction cards
+2. **Digital Ledger** — Customer search, balance display, transaction history modal
+3. **Quick Insights** — Chart.js 7-day trend bar chart, credit/payment doughnut chart, top debtors, AI summary
 
 ---
 
@@ -66,12 +63,9 @@ gemma-khata/
 
 ### Prerequisites
 ```bash
-# 1. Install Ollama
-# https://ollama.com/download
-
+# 1. Install Ollama: https://ollama.com/download
 # 2. Pull Gemma 4 E2B
 ollama pull gemma4:e2b
-
 # 3. Start Ollama
 ollama serve
 ```
@@ -83,10 +77,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Run All Tests (works fully offline — no Ollama needed)
+### Run the App
+```bash
+python main.py
+# Opens at http://localhost:8000
+```
+
+### Run All Tests (44 tests — works fully offline)
 ```bash
 python test_ledger.py      # 5 tests
 python test_gemma_ai.py    # 17 tests
+python test_speech.py      # 22 tests
 ```
 
 ### Seed Sample Data
@@ -94,24 +95,20 @@ python test_gemma_ai.py    # 17 tests
 python -c "import ledger; ledger.seed_sample_data()"
 ```
 
-### Test Live Gemma Extraction (Ollama must be running)
-```bash
-python gemma_ai.py
-```
-
 ---
 
-## Example — Voice to Transactions
+## API Endpoints
 
-**Shopkeeper says:**
-> "Ramesh ne 500 rupaye diye aur Suresh ko 200 rupaye ka chawal udhaar diya."
-
-**Gemma extracts:**
-| Customer | Type    | Amount | Item   |
-|----------|---------|--------|--------|
-| Ramesh   | payment | Rs.500 | —      |
-| Suresh   | credit  | Rs.200 | Chawal |
-
-Both transactions are shown as editable cards. Nothing is saved until the shopkeeper confirms.
-
-0132778342cd790763f979573e76e907060987b5
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/` | Serves the web app |
+| GET | `/api/health` | Check Ollama & Whisper status |
+| POST | `/api/transcribe` | Audio → text (faster-whisper) |
+| POST | `/api/extract` | Text → transactions (Gemma AI) |
+| POST | `/api/transactions` | Save confirmed transactions |
+| GET | `/api/customers` | List all customers with balances |
+| GET | `/api/customers/{id}/transactions` | Customer transaction history |
+| GET | `/api/transactions/recent` | Recent transactions |
+| DELETE | `/api/transactions/{id}` | Delete a transaction |
+| GET | `/api/insights` | Dashboard data with Chart.js datasets |
+| POST | `/api/seed` | Seed sample kirana data |
