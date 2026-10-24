@@ -68,20 +68,35 @@ def init_db() -> None:
             picture TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            display_name TEXT NOT NULL,
+            identifier TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_customers_user_name
+            ON customers(user_id, display_name COLLATE NOCASE);
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             customer TEXT NOT NULL,
+            customer_id INTEGER,
             kind TEXT NOT NULL CHECK(kind IN ('credit_sale','payment_received','cash_expense')),
             amount_paise INTEGER NOT NULL CHECK(amount_paise > 0),
             note TEXT NOT NULL DEFAULT '',
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id, customer_id) REFERENCES customers(user_id, id)
         );
         CREATE INDEX IF NOT EXISTS idx_transactions_user_created
             ON transactions(user_id, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_transactions_user_customer
             ON transactions(user_id, customer COLLATE NOCASE);
         """)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(transactions)").fetchall()}
+        if "customer_id" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN customer_id INTEGER")
 
 
 @app.on_event("startup")
@@ -96,8 +111,14 @@ class GoogleCredential(BaseModel):
     credential: str = Field(min_length=20, max_length=10000)
 
 
+class CustomerCreate(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    identifier: str = Field(default="", max_length=120)
+
+
 class TransactionCreate(BaseModel):
     customer: str = Field(min_length=1, max_length=120)
+    customer_id: int | None = Field(default=None, gt=0)
     kind: Kind
     amount: float = Field(gt=0, le=100_000_000)
     note: str = Field(default="", max_length=1000)
@@ -193,6 +214,43 @@ def auth_me(user: dict = Depends(authenticated_user)):
     return _profile(user)
 
 
+@app.get("/api/customers")
+def get_customers(user: dict = Depends(authenticated_user)):
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, display_name, identifier, created_at FROM customers WHERE user_id=? ORDER BY display_name COLLATE NOCASE, id",
+            (user["id"],),
+        ).fetchall()
+        customers = []
+        for row in rows:
+            item = dict(row)
+            item["customer_code"] = f"CUS-{item['id']:06d}"
+            customers.append(item)
+    return {"customers": customers}
+
+
+@app.post("/api/customers", status_code=201)
+def create_customer(body: CustomerCreate, user: dict = Depends(authenticated_user)):
+    name = body.display_name.strip()
+    identifier = body.identifier.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Customer name is required.")
+    if not identifier:
+        raise HTTPException(status_code=422, detail="Add a phone number or another detail to distinguish this customer.")
+    with db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO customers (user_id, display_name, identifier, created_at) VALUES (?, ?, ?, ?)",
+            (user["id"], name, identifier, utc_now()),
+        )
+        row = conn.execute(
+            "SELECT id, display_name, identifier, created_at FROM customers WHERE id=? AND user_id=?",
+            (cursor.lastrowid, user["id"]),
+        ).fetchone()
+        item = dict(row)
+        item["customer_code"] = f"CUS-{item['id']:06d}"
+    return item
+
+
 @app.get("/api/transactions")
 def get_transactions(
     limit: int = Query(default=100, ge=1, le=500),
@@ -215,13 +273,26 @@ def create_transaction(body: TransactionCreate, user: dict = Depends(authenticat
     if amount_paise <= 0:
         raise HTTPException(status_code=422, detail="Amount must be at least ₹0.01.")
     with db() as conn:
+        if body.customer_id is not None:
+            account = conn.execute(
+                "SELECT display_name, identifier FROM customers WHERE id=? AND user_id=?",
+                (body.customer_id, user["id"]),
+            ).fetchone()
+            if account is None:
+                raise HTTPException(status_code=404, detail="Customer account not found for this shop.")
+            customer = account["display_name"]
+            if account["identifier"]:
+                customer = f"{customer} · {account['identifier']}"
         cursor = conn.execute(
-            """INSERT INTO transactions (user_id, customer, kind, amount_paise, note, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user["id"], customer, body.kind, amount_paise, body.note.strip(), utc_now()),
+            """INSERT INTO transactions (user_id, customer, customer_id, kind, amount_paise, note, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (user["id"], customer, body.customer_id, body.kind, amount_paise, body.note.strip(), utc_now()),
         )
         row = conn.execute("SELECT * FROM transactions WHERE id=?", (cursor.lastrowid,)).fetchone()
-    return _public_transaction(row)
+        item = _public_transaction(row)
+        if body.customer_id is not None:
+            item["customer_code"] = f"CUS-{body.customer_id:06d}"
+    return item
 
 
 @app.delete("/api/transactions/{transaction_id}")
