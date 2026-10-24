@@ -107,6 +107,10 @@ const API_BASE = window.VOICEKHATA_API_BASE || (
         const user = await request("/auth/me");
         setProfile(user);
         updateHeader(user);
+        // Restore the real ledger after a page refresh when the session is still valid.
+        if (window.VoiceKhata?.loadFromBackend) {
+          await window.VoiceKhata.loadFromBackend();
+        }
       } catch {
         setToken("");
         setProfile(null);
