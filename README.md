@@ -1,31 +1,39 @@
 # VoiceKhata
 
-**A voice-first digital ledger for small vendors, designed for Gemma 4.**
+**A voice-first digital ledger for small vendors and local shops.**
 
-VoiceKhata helps shopkeepers record credit sales, payments received and shop expenses using a review-before-save workflow.
+VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and shop expenses through a simple ledger with a review-before-save workflow.
+
+## Features
+
+- Responsive dashboard with ledger-derived totals and money-flow chart
+- Searchable transaction history
+- Customer balance summaries
+- Manual transaction entry with confirmation before saving
+- Google Identity Services sign-in foundation
+- FastAPI backend with SQLite and user-scoped transactions
+- API health and authentication tests
 
 ## Stack
 
 - Frontend: HTML, CSS, JavaScript
-- Dashboard charts: Chart.js (values calculated from the signed-in user's real transactions)
-- Backend API: Python + FastAPI
-- Database: SQLite, with user-scoped transactions and integer paise storage
-- Login: Google Identity Services (Google account sign-in; never collect Gmail passwords)
-- Planned/integration point: Gemma via Ollama for transaction extraction, faster-whisper for voice transcription
+- Backend: Python, FastAPI, Pydantic
+- Database: SQLite; amounts stored as integer paise
+- Charts: Chart.js
+- Authentication: Google Identity Services
 
-## Current features in this branch
+## Current limitations
 
-- Google sign-in foundation with backend token verification and audience checks
-- A separate SQLite user profile and ledger for each Google account
-- Authenticated transaction listing, saving, and summary endpoints
-- Amount stored as integer paise; deterministic Python balance calculations
-- Draft parsing endpoint that does not save anything until the user confirms
-- Dashboard chart based on actual ledger transactions, not hard-coded chart figures
-- API health and authentication tests
+- Google OAuth must be configured before private ledger actions can be used.
+- Voice recording UI exists, but speech-to-text is not connected in this branch.
+- Transaction parsing is a deterministic baseline, not a Gemma/Ollama integration. Always verify the extracted name, amount and transaction type.
+- This is a hackathon MVP, not a production financial service. Use HTTPS, review session handling, and back up the database before entering real customer data.
 
-## Run the backend
+## Run locally
 
 Requires Python 3.10+.
+
+### 1. Start the backend
 
 ```bash
 python -m venv .venv
@@ -37,9 +45,10 @@ export VOICEKHATA_CORS_ORIGINS="http://localhost:5500,http://127.0.0.1:5500"
 uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open API docs at http://127.0.0.1:8000/docs. See [backend/README.md](backend/README.md) for setting up the Google OAuth client.
+Backend health: http://127.0.0.1:8000/api/health  
+Interactive API docs: http://127.0.0.1:8000/docs
 
-## Run the frontend
+### 2. Start the frontend
 
 In a second terminal:
 
@@ -48,43 +57,43 @@ cd frontend
 python3 -m http.server 5500
 ```
 
-Open http://localhost:5500. Set `window.VOICEKHATA_API_BASE` before the app scripts if your API runs at a different URL.
+Open http://localhost:5500.
 
 ## Google sign-in setup
 
-In Google Cloud Console, configure the OAuth consent screen, create a **Web application** OAuth client ID, and add `http://localhost:5500` as an Authorized JavaScript origin for local development. Export that client ID as `GOOGLE_CLIENT_ID` when running FastAPI. For production, use HTTPS and configure your actual frontend origin in `VOICEKHATA_CORS_ORIGINS`.
+In Google Cloud Console, configure the OAuth consent screen and create a **Web application** OAuth client ID. Add `http://localhost:5500` as an authorized JavaScript origin. Set `GOOGLE_CLIENT_ID` in the backend environment. For deployment, use HTTPS and configure the real frontend origin in `VOICEKHATA_CORS_ORIGINS`.
 
 ## API endpoints
 
-- `GET /api/health`
-- `GET /api/auth/config`
-- `POST /api/auth/google`
-- `GET /api/auth/me`
-- `GET /api/transactions`
-- `POST /api/transactions`
-- `POST /api/transactions/parse`
-- `GET /api/summary`
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/health` | API and database health |
+| GET | `/api/auth/config` | Login configuration |
+| POST | `/api/auth/google` | Verify Google credential |
+| GET | `/api/auth/me` | Current account |
+| GET | `/api/transactions` | List signed-in user's transactions |
+| POST | `/api/transactions` | Save a transaction |
+| POST | `/api/transactions/parse` | Prepare an editable transaction draft |
+| GET | `/api/summary` | Ledger totals and customer balances |
 
-All ledger endpoints require a Google ID token in the Authorization header. The transaction parse route returns a draft only. Always review the name, amount and transaction type before confirming.
+All ledger endpoints require Google authentication. Parsing returns a draft only; saving requires explicit confirmation.
 
-## Tests
+## Test
 
 ```bash
 python -m pip install -r backend/requirements.txt
 pytest -q backend/tests
+node --check frontend/app.js
+node --check frontend/auth.js
 ```
-
-## Important MVP limitations
-
-- Google Cloud OAuth setup must be completed by the project owner before sign-in works.
-- The parser in this branch is a simple baseline, not the Gemma/Ollama extraction integration.
-- The existing voice UI expects `POST /api/voice/transcribe`; connect faster-whisper to enable real audio transcription.
-- This is a hackathon MVP, not yet a production financial service. Deploy with HTTPS, review security/session handling, and back up the database before using it with real customer data.
 
 ## Contributing
 
-Use a feature branch and open a pull request. Keep transaction math deterministic and do not allow AI-extracted drafts to save without user confirmation.
+1. Create a feature branch.
+2. Keep balance calculations deterministic and preserve the confirmation-before-save workflow.
+3. Run the tests and syntax checks.
+4. Open a pull request describing the change and how it was tested.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
