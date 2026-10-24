@@ -248,7 +248,7 @@
       </div>
       <button class="btn-primary" type="submit">Get started →</button>
     </form>
-    <p class="ob-note">This demo stores your shop profile and entries in this browser. No account needed.</p>
+    <p class="ob-note">Preview entries are stored in this browser. Sign in after setup to sync new entries to your private backend ledger.</p>
   </div>
 </div>
 
@@ -445,7 +445,7 @@
 <script>
 // ═══════════════════════════════════════════════════════════
 //  VoiceKhata — Merged Prototype (all branches unified)
-//  Features: Web Speech API STT, NLP parser, localStorage ledger
+//  Features: local Whisper STT, review-first ledger, optional authenticated FastAPI sync
 // ═══════════════════════════════════════════════════════════
 
 const SHOP_KEY = "vk.shop.v1";
@@ -731,13 +731,27 @@ function clearVoice() {
 }
 
 // ── Parse & Review ────────────────────────────────────────
-function parseCurrentText() {
+async function parseCurrentText() {
   const text = $("transcriptBox").value.trim();
-  if(!text) { showToast("Please record or type a transaction first."); return; }
-  const parsed = parseTransactionText(text);
-  showReviewForm(parsed);
+  if (!text) { showToast("Please record or type a transaction first."); return; }
+  const button = document.querySelector(".btn-parse");
+  if (button) { button.disabled = true; button.textContent = "Understanding…"; }
+  try {
+    let parsed;
+    if (window.VoiceKhataCloud?.signedIn()) {
+      parsed = await window.VoiceKhataCloud.request("/transactions/parse", {
+        method:"POST", body:JSON.stringify({text,language:$("langSelect")?.value || "auto"})
+      });
+    } else {
+      parsed = parseTransactionText(text);
+    }
+    if (parsed) showReviewForm(parsed);
+  } catch (error) {
+    showToast("Could not prepare transaction: " + error.message + ". Nothing was saved.");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "🤖 Understand Transaction"; }
+  }
 }
-
 function showReviewForm(parsed) {
   $("emptyReview").classList.add("hidden");
   $("successFlash").style.display = "none";
@@ -754,35 +768,50 @@ function discardReview() {
   $("emptyReview").classList.remove("hidden");
 }
 
-function confirmAndSave() {
+async function confirmAndSave() {
   const customer = $("rvCustomer").value.trim();
   const kind = $("rvKind").value;
-  const amount = parseFloat($("rvAmount").value);
+  const amount = Number($("rvAmount").value);
   const note = $("rvNote").value.trim();
-
-  if(!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
-  if(!amount || amount <= 0) { showToast("Please enter a valid amount greater than 0."); $("rvAmount").focus(); return; }
-
-  const txn = { id: "tx_" + Date.now(), customer, kind, amount, note, created_at: new Date().toISOString() };
-
-  if(demoMode) {
-    // First real transaction — clear demo data
-    transactions = [];
-    demoMode = false;
-    $("demoBanner").style.display = "none";
+  if (!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
+  if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
+    showToast("Enter a positive amount with up to 2 decimal places."); $("rvAmount").focus(); return;
   }
-
-  transactions.unshift(txn);
-  saveTransactions();
-
-  $("reviewForm").classList.add("hidden");
-  $("emptyReview").classList.add("hidden");
-  const sf = $("successFlash");
-  sf.style.display = "block";
-  $("successDetail").textContent = `${customer} — ${kindLabels[kind]} — ${rupees(amount)}`;
-  showToast("🎉 Transaction saved to khata!");
+  const button = document.querySelector(".btn-confirm");
+  if (button) button.disabled = true;
+  try {
+    let txn;
+    if (window.VoiceKhataCloud?.signedIn()) {
+      // Never fallback to local saving if a private server write fails.
+      txn = await window.VoiceKhataCloud.request("/transactions", {
+        method:"POST", body:JSON.stringify({customer,kind,amount,note})
+      });
+      await window.VoiceKhataCloud.loadLedger();
+    } else {
+      txn = {id:"tx_"+Date.now(), customer, kind, amount, note, created_at:new Date().toISOString()};
+      if (demoMode) {
+        transactions = [];
+        demoMode = false;
+        $("demoBanner").style.display = "none";
+      }
+      transactions.unshift(txn);
+      saveTransactions();
+    }
+    $("reviewForm").classList.add("hidden");
+    $("emptyReview").classList.add("hidden");
+    $("successFlash").style.display = "block";
+    $("successDetail").textContent = `${customer} — ${kindLabels[kind]} — ${rupees(amount)}`;
+    showToast(window.VoiceKhataCloud?.signedIn()
+      ? "Saved to your private SQLite ledger!"
+      : "Saved to this browser only (preview mode).");
+    if (window.VoiceKhataCloud?.signedIn()) navigate("ledger");
+    else { renderDashboard(); renderLedger(); renderCustomers(); }
+  } catch (error) {
+    showToast("Could not save: " + error.message + ". Please retry.");
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
-
 function recordAnother() {
   $("successFlash").style.display = "none";
   $("emptyReview").classList.remove("hidden");
@@ -799,6 +828,8 @@ function recordAnother() {
   }
 })();
 </script>
+<script src="config.js"></script>
+<script src="cloud.js"></script>
 <script type="module" src="whisper-stt.js"></script>
 </body>
 </html>
