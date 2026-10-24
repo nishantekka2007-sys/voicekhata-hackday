@@ -6,6 +6,53 @@ VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and
 
 **Live prototype:** [Open VoiceKhata on GitHub Pages](https://nishantekka2007-sys.github.io/voicekhata-hackday/).
 
+## Frontend and backend integration (October 2026)
+
+All earlier feature branches and pull requests are already ancestors of `main`. The combined site now supports two **explicit modes**:
+
+- **Public GitHub Pages preview:** Works without a server, uses local Whisper for browser voice input and stores demo transactions only in that browser. It does **not** sync financial data.
+- **Authenticated full-stack app:** FastAPI serves the exact same `frontend/index.html` at `/`, and `/api` routes handle Google sign-in and private SQLite transactions. After Google sign-in, the existing review form saves to the API and reloads its ledger from SQLite. Failed server writes do not silently become local demo records.
+
+### Run the combined website locally
+
+```bash
+git clone https://github.com/nishantekka2007-sys/voicekhata-hackday.git
+cd voicekhata-hackday
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+export GOOGLE_CLIENT_ID="YOUR_GOOGLE_WEB_CLIENT_ID"
+export VOICEKHATA_CORS_ORIGINS="http://localhost:8000,http://127.0.0.1:8000"
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000/** to use the combined site; verify **http://127.0.0.1:8000/api/health**. Configure the Google OAuth Web application to authorize `http://127.0.0.1:8000` as a JavaScript origin. The account login only works after `GOOGLE_CLIENT_ID` is set.
+
+**Optional local Gemma parsing:** Run `ollama pull gemma4:e2b`, start Ollama, then set `VOICEKHATA_USE_GEMMA=1` before starting FastAPI. Otherwise the current conservative parser is used. Gemma extraction is a draft only; customers must check and confirm amounts.
+
+### Make GitHub Pages use the real backend
+
+GitHub Pages **cannot run Python, FastAPI, Ollama or SQLite**. To sync from `https://nishantekka2007-sys.github.io/voicekhata-hackday/`, independently deploy the FastAPI service to a persistent HTTPS host, configure:
+
+1. `GOOGLE_CLIENT_ID` with Google OAuth origin `https://nishantekka2007-sys.github.io`.
+2. `VOICEKHATA_CORS_ORIGINS=https://nishantekka2007-sys.github.io` on the hosted backend.
+3. Persistent database storage via `VOICEKHATA_DB_PATH`, on a mounted volume. Avoid temporary filesystem storage for real data.
+4. `frontend/config.js` to set `window.VOICEKHATA_API_BASE = "https://YOUR-BACKEND-URL/api";` (HTTPS only), commit this public URL to `main`, and let the Pages deployment run.
+
+The public backend URL is not a secret. **Do not store Google client secrets, tokens, or other API keys in `frontend/config.js`.** Without a deployed backend URL, Pages intentionally remains preview-only. Running Ollama on a laptop does not make it accessible to a publicly hosted backend.
+
+### Integration verification
+
+```bash
+python -m pip install -r backend/requirements.txt
+pytest -q backend/tests
+node --check frontend/cloud.js
+node --check frontend/config.js
+node --check frontend/whisper-stt.js
+```
+
+Test signing in, saving a transaction, reloading the browser, and confirming the same private ledger entries persist. Use fake transaction data while security and deployment are under review.
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
