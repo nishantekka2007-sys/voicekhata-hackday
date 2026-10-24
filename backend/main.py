@@ -11,6 +11,7 @@ from typing import Literal
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent
@@ -303,3 +304,10 @@ def parse_transaction(body: TransactionParse, user: dict = Depends(authenticated
         "customer": customer, "kind": kind, "amount": amount, "note": text,
         "requires_confirmation": True,
     }
+
+
+# Serve the existing responsive web frontend from the SAME FastAPI origin.
+# Register this catch-all mount after every /api route so API routes take priority.
+FRONTEND_DIR = ROOT.parent / "frontend"
+if FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
