@@ -4,6 +4,16 @@ const authRequest = (path, options={}) => {
   if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before accessing your ledger.");
   return window.VoiceKhataAuth.request(path, options);
 };
+const apiRequest = async (path, options={}) => {
+  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
+  const headers = {Accept:"application/json", ...(options.body instanceof FormData ? {} : {"Content-Type":"application/json"}), ...(options.headers||{})};
+  let response;
+  try { response = await fetch(API_BASE + path, {...options, headers}); }
+  catch { throw new Error("Cannot reach backend. Start FastAPI at http://127.0.0.1:8000."); }
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.detail || "Request failed (" + response.status + ")");
+  return data;
+};
 const DEMO_TRANSACTIONS = [
   {id:1,customer:"Ramesh Kumar",note:"2 kg basmati rice",kind:"credit_sale",amount:500,created_at:new Date(Date.now()-1000*60*24).toISOString()},
   {id:2,customer:"Anita Devi",note:"Part payment",kind:"payment_received",amount:1200,created_at:new Date(Date.now()-1000*60*87).toISOString()},
@@ -104,7 +114,7 @@ async function apiRequest(path,options={}){
   return response.status===204?null:response.json();
 }
 function normalizeTransaction(raw){
-  return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),created_at:raw.created_at??new Date().toISOString()};
+  return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),product:raw.product??"",paid_amount:Number(raw.paid_amount??0),left_amount:Number(raw.left_amount??raw.amount??0),created_at:raw.created_at??new Date().toISOString()};
 }
 async function loadFromBackend(){
   if (!window.VoiceKhataAuth?.isSignedIn()) {
@@ -173,15 +183,20 @@ async function understandTransaction(){
   }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
+  $("reviewProduct").value=parsed.product||parsed.item||"";
   $("reviewAmount").value=parsed.amount||"";
+  $("reviewPaidAmount").value=Number(parsed.paid_amount||0);
+  updateLeftAmount();
   $("reviewNote").value=parsed.note||text;
   $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
   $("reviewMessage").textContent="";
 }
+function updateLeftAmount(){const due=Number($("reviewAmount").value||0),paid=Number($("reviewPaidAmount").value||0);$("reviewLeftAmount").value=Math.max(0,due-paid).toFixed(2);}
 async function saveTransaction(event){
   event.preventDefault();
-  const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
-  if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and amount.");return;}
+  const due=Number($("reviewAmount").value), paid=Number($("reviewPaidAmount").value||0), left=Number((due-paid).toFixed(2));
+  const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:due,product:$("reviewProduct").value.trim(),paid_amount:paid,left_amount:left,note:$("reviewNote").value.trim()};
+  if(!item.customer||!Number.isFinite(due)||due<=0||!Number.isFinite(paid)||paid<0||paid>due){showToast("Check customer and amounts. Paid now cannot exceed due amount.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
   const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
@@ -251,6 +266,8 @@ document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("
 $("recordButton").addEventListener("click",startRecording);
 $("understandButton").addEventListener("click",understandTransaction);
 $("reviewForm").addEventListener("submit",saveTransaction);
+$("reviewAmount").addEventListener("input",updateLeftAmount);
+$("reviewPaidAmount").addEventListener("input",updateLeftAmount);
 $("ledgerSearch").addEventListener("input",renderTransactions);
 $("customerSearch").addEventListener("input",renderCustomers);
 $("chartRange").addEventListener("change",renderChart);
