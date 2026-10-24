@@ -260,7 +260,7 @@
       </div>
       <button class="btn-primary" type="submit">Get started →</button>
     </form>
-    <p class="ob-note">Preview entries are stored in this browser. Sign in after setup to sync new entries to your private backend ledger.</p>
+    <p class="ob-note">You can use VoiceKhata without an account. Entries stay in this browser. Google login and device sync require a hosted backend.</p>
   </div>
 </div>
 
@@ -357,6 +357,7 @@
           <label style="font-size:11px;color:var(--muted)">To <input class="search-input" id="ledgerDateTo" type="date" onchange="renderLedger()" style="max-width:165px"></label>
           <button class="btn-ghost" type="button" onclick="setLedgerToday()">Today</button>
           <button class="btn-ghost" type="button" onclick="clearLedgerFilters()">All dates</button>
+              <button class="btn-ghost" type="button" onclick="exportLedgerCSV()" title="Download your ledger backup">⬇ Export CSV</button>
         </div>
         <p class="ledger-count" id="ledgerCount"></p>
         <div class="panel" style="padding:0;overflow:hidden">
@@ -381,7 +382,7 @@
                 <option value="hi-IN">🇮🇳 Hindi</option>
                 <option value="en-IN">🇬🇧 English</option>
                 <option value="mr-IN">🇮🇳 Marathi</option>
-                <option value="en-IN" id="autoLangOpt">🌐 Hinglish / Auto</option>
+                <option value="auto" id="autoLangOpt">🌐 Hinglish / Auto detect</option>
               </select>
             </div>
             <div class="stt-not-supported" id="sttNotSupported">
@@ -542,6 +543,11 @@ function dateTime(v) {
   return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short"}) + " · " + d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
 }
 
+function localDateKey(date) {
+  const d = new Date(date);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
 function toneClass(i) { return "t" + (i % 4); }
 
 // ── Toast ─────────────────────────────────────────────────
@@ -618,6 +624,7 @@ function initApp() {
   $("demoBanner").style.display = demoMode ? "" : "none";
   initSpeech();
   navigate("dashboard");
+  if (window.VoiceKhataCloud?.signedIn()) window.VoiceKhataCloud.loadLedger().catch(error => showToast("Could not load synced ledger: " + error.message));
 }
 
 // ── Navigation ────────────────────────────────────────────
@@ -717,7 +724,7 @@ function renderChart() {
   const canvas = $("flowChart");
   if(!canvas || !window.Chart) return;
   const days = Array.from({length:7},(_,i) => {
-    const d = new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().slice(0,10);
+    const d = new Date(); d.setDate(d.getDate()-6+i); return localDateKey(d);
   });
   const credit = days.map(d => transactions.filter(t=>t.kind==="credit_sale"&&t.created_at.startsWith(d)).reduce((s,t)=>s+Number(t.amount),0));
   const payments = days.map(d => transactions.filter(t=>t.kind==="payment_received"&&t.created_at.startsWith(d)).reduce((s,t)=>s+Number(t.amount),0));
@@ -819,44 +826,49 @@ async function deleteTransaction(id) {
   }
 }
 
+
+function exportLedgerCSV() {
+  if (demoMode) { showToast("Sample records are only for demonstration. Save a real entry before exporting."); return; }
+  if (!transactions.length) { showToast("No transactions to export."); return; }
+  const quote = value => {
+    let cell = String(value == null ? "" : value);
+    if (/^[\s]*[=+\-@\t\r]/.test(cell)) cell = "'" + cell;
+    return '"' + cell.replace(/"/g, '""') + '"';
+  };
+  const header = ["Date", "Customer", "Type", "Amount INR", "Note"];
+  const rows = transactions.map(t => [t.created_at, t.customer, kindLabels[t.kind] || t.kind, Number(t.amount).toFixed(2), t.note || ""]);
+  const csv = "\uFEFF" + [header, ...rows].map(row => row.map(quote).join(",")).join("\r\n") + "\r\n";
+  const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "voicekhata-ledger-" + localDateKey(new Date()) + ".csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  showToast("Ledger CSV downloaded. Keep your backup private.");
+}
+
 // ── NLP Parser ────────────────────────────────────────────
 function parseTransactionText(text) {
-  const orig = text.trim();
-  const lower = orig.toLowerCase();
-  const allAmounts = [...lower.matchAll(/(?:₹\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?))?/gi)]
-    .map(m => ({amount:parseFloat(m[1].replace(/,/g,"")),index:m.index,raw:m[0]}))
-    .filter(x => Number.isFinite(x.amount));
-
-  const billContext = /\b(bill|bills|total|invoice|khata|maal|samaan|items?)\b/i.test(lower);
-  const paidMatch = lower.match(/(?:paid|pays?|paying|gave|given|deposited|jama(?:\s+kiya)?|diye|diya|received)\D{0,18}(?:₹\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
-  const paidReverseMatch = lower.match(/(?:₹\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:rupees?\s*)?(?:paid|payment)/i);
-  let amount = 0;
-  let paid_now = 0;
-  let kind = "credit_sale";
-
-  if(billContext && allAmounts.length >= 2 && (paidMatch || paidReverseMatch || /\bdebt\b|\budhaar\b|\bremaining\b|\bleft\b/i.test(lower))) {
-    const paidCandidate = paidMatch ? parseFloat(paidMatch[1].replace(/,/g,"")) :
-      paidReverseMatch ? parseFloat(paidReverseMatch[1].replace(/,/g,"")) : 0;
-    const likelyTotal = allAmounts.find(x => x.amount >= paidCandidate && x.amount !== 0);
-    amount = likelyTotal ? likelyTotal.amount : allAmounts[0].amount;
-    paid_now = Math.min(paidCandidate, amount);
-    kind = "credit_sale";
-  } else {
-    amount = allAmounts.length ? allAmounts[0].amount : 0;
-    const paymentWords = /\b(diye|diya|deta|dia|paid|payment|returned|wapas|collected|mila|ne\s+diye|ne\s+diya|settled|repaid|jama)\b/i;
-    const expenseWords = /\b(kharcha|kharche|expense|shop\s+expense|bijli|rent|purchase|shopkeeper|electricity|kharid)\b/i;
-    if(paymentWords.test(lower)) kind = "payment_received";
-    if(expenseWords.test(lower)) kind = "cash_expense";
+  const parsed = window.VoiceKhataParser.parse(text);
+  if (parsed.error) return parsed;
+  // Preserve the latest main branch's split-bill feature without allowing
+  // ambiguous speech to create unreviewed transactions.
+  const normalized = window.VoiceKhataParser.toAsciiDigits(text);
+  if (/\b(bill|invoice|total)\b/i.test(normalized) && /\b(paid|payment|paying|jama)\b/i.test(normalized)) {
+    const amounts = [...normalized.matchAll(/(?:₹\s*)?(\d[\d,]*(?:\.\d{1,2})?)/g)].map(m => Number(m[1].replace(/,/g, "")));
+    const paid = normalized.match(/\b(?:paid|payment|paying|jama)\b\s*(?:₹\s*)?(\d[\d,]*(?:\.\d{1,2})?)/i);
+    if (amounts.length === 2 && paid && parsed.customer) {
+      const paidNow = Number(paid[1].replace(/,/g, ""));
+      const total = Math.max(...amounts);
+      if (paidNow >= 0 && total > 0 && paidNow <= total) {
+        return {...parsed, kind:"credit_sale", amount:total, paid_now:paidNow,
+          review_warning:"Check total bill and paid-now amount before saving two entries."};
+      }
+    }
   }
-
-  let ct = orig;
-  ct = ct.replace(/₹\s*[0-9,]+(?:\.[0-9]{1,2})?/g, " ");
-  ct = ct.replace(/[0-9,]+(?:\.[0-9]{1,2})?\s*(?:rupay[ea]?|रुपय[ेे]?|rs\.?|rps?\.?)?/gi, " ");
-  ct = ct.replace(/\b(ne|ko|se|ka|ki|ke|liye|liya|diye|diya|deta|dia|paid|payment|credit|udhaar|udhar|took|gave|give|taken|on|for|to|from|the|a|an|me|rupaye|rupee|wapas|returned|collected|jama|settled|repaid|kharcha|expense|mila|aur|and|hai|he|is|was|bill|bills|total|debt|remaining|left|paying|received|invoice)\b/gi, " ");
-  ct = ct.replace(/[₹,:।!?]/g, " ").replace(/\s+/g, " ").trim();
-  const words = ct.split(" ").filter(w=>w.length>1);
-  const customer = words.slice(0,2).join(" ").trim() || (kind==="cash_expense" ? "Shop Expense" : "");
-  return { customer, kind, amount, paid_now, note: orig, requires_confirmation: true };
+  return parsed;
 }
 
 // ── Local Whisper speech-to-text ───────────────────────────
@@ -909,6 +921,7 @@ async function parseCurrentText() {
     } else {
       parsed = parseTransactionText(text);
     }
+    if (parsed?.error) throw new Error(parsed.error);
     if (parsed) showReviewForm(parsed);
   } catch (error) {
     showToast("Could not prepare transaction: " + error.message + ". Nothing was saved.");
@@ -925,6 +938,7 @@ function showReviewForm(parsed) {
   $("rvAmount").value = parsed.amount || "";
   $("rvPaidNow").value = parsed.paid_now || 0;
   $("rvNote").value = parsed.note || "";
+  if (parsed.review_warning) showToast(parsed.review_warning);
   updateReviewPaymentFields();
 }
 
@@ -941,10 +955,10 @@ async function confirmAndSave() {
   const paidNow = kind === "credit_sale" ? Number($("rvPaidNow").value || 0) : 0;
   const note = $("rvNote").value.trim();
   if (!customer) { showToast("Please enter a customer name."); $("rvCustomer").focus(); return; }
-  if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
+  if (!Number.isFinite(amount) || amount <= 0 || Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
     showToast("Enter a positive total amount with up to 2 decimal places."); $("rvAmount").focus(); return;
   }
-  if (!Number.isFinite(paidNow) || paidNow < 0 || Math.round(paidNow * 100) !== paidNow * 100 || paidNow > amount) {
+  if (!Number.isFinite(paidNow) || paidNow < 0 || Math.abs(Math.round(paidNow * 100) - paidNow * 100) > 0.000001 || paidNow > amount) {
     showToast("Amount paid now must be zero or more, and cannot exceed the total bill."); $("rvPaidNow").focus(); return;
   }
   const button = document.querySelector(".btn-confirm");
@@ -1009,6 +1023,7 @@ function recordAnother() {
   }
 })();
 </script>
+<script src="transaction-parser.js"></script>
 <script src="config.js"></script>
 <script src="cloud.js"></script>
 <script type="module" src="whisper-stt.js"></script>

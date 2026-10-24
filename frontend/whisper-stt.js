@@ -7,7 +7,7 @@
  */
 
 const TRANSFORMERS_MODULE_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
-const WHISPER_MODEL = "onnx-community/whisper-tiny";
+// Multilingual Whisper base provides better accuracy for Hindi than tiny on capable devices.\nconst WHISPER_MODEL = "onnx-community/whisper-base";
 const TARGET_SAMPLE_RATE = 16000;
 const MAX_RECORDING_SECONDS = 25;
 
@@ -122,7 +122,7 @@ async function decodeAudioTo16k(blob) {
     }
     const bytes = await blob.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(bytes);
-    if (!audioBuffer.length || audioBuffer.duration < 0.25) {
+    if (!audioBuffer.length || audioBuffer.duration < 0.6) {
       throw new Error("The recording was too short. Please speak for at least one second.");
     }
     if (audioBuffer.duration > MAX_RECORDING_SECONDS + 2) {
@@ -136,6 +136,8 @@ async function decodeAudioTo16k(blob) {
       for (let i = 0; i < values.length; i++) mono[i] += values[i] / channels;
     }
 
+    const rms = Math.sqrt(mono.reduce((sum, sample) => sum + sample * sample, 0) / mono.length);
+    if (rms < 0.001) throw new Error("No clear speech detected. Check the microphone input and speak louder.");
     return resampleAudio(mono, audioBuffer.sampleRate, TARGET_SAMPLE_RATE);
   } finally {
     if (audioContext && audioContext.state !== "closed") {
@@ -147,7 +149,8 @@ async function decodeAudioTo16k(blob) {
 function whisperLanguage(selectedLanguage) {
   if (selectedLanguage === "hi-IN") return "hindi";
   if (selectedLanguage === "mr-IN") return "marathi";
-  return "english";
+  if (selectedLanguage === "en-IN") return "english";
+  return null; // Auto-detect Hindi/English/Hinglish rather than forcing English.
 }
 
 async function transcribeBlob(blob, selectedLanguage) {
@@ -161,13 +164,19 @@ async function transcribeBlob(blob, selectedLanguage) {
 
     if (cancelRequested) return;
     showStatus("TRANSCRIBING ON THIS DEVICE", "Whisper is processing the recording in your browser.");
-    const result = await asr(samples, {
-      language: whisperLanguage(selectedLanguage),
-      task: "transcribe"
-    });
+    const chosenLanguage = whisperLanguage(selectedLanguage);
+    const options = { task: "transcribe", return_timestamps: false };
+    if (chosenLanguage) options.language = chosenLanguage;
+    const result = await asr(samples, options);
 
     if (cancelRequested) return;
     const transcript = String(result && result.text || "").trim();
+    const likelyHallucination = /^(?:thank you\.?|thanks\.?|subtitles by|music|you)$/i.test(transcript);
+    if (likelyHallucination) {
+      toast("Speech was unclear. Please record again or edit the transcript.");
+      showStatus("TAP TO RECORD", "Could not reliably recognize your transaction.");
+      return;
+    }
     if (!transcript) {
       toast("No speech was recognized. Try speaking closer to the microphone.");
       showStatus("TAP TO RECORD", "No text captured. Try again or type the transaction.");
@@ -247,7 +256,7 @@ async function startRecording(selectedLanguage) {
   setMicVisual(true);
   showStatus("RECORDING NOW", "Speak clearly. Tap the microphone again to transcribe locally. Max " + MAX_RECORDING_SECONDS + " seconds.");
   
-  // Begin downloading/loading the speech engine while the user is speaking.
+  // Begin downloading/loading the speech engine while the user is speaking.\n  // A loading failure is shown during transcription; users may still edit text.
   loadTranscriber().catch((error) => {
     console.warn("Whisper model pre-load failed; it will retry after recording:", error);
   });

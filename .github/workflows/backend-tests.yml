@@ -31,3 +31,14 @@ jobs:
           node --check frontend/config.js
           node --check frontend/cloud.js
           node --check frontend/whisper-stt.js
+          node --check frontend/transaction-parser.js
+          node frontend/transaction-parser.test.js
+          node <<'NODE'
+          const fs = require("node:fs");
+          const html = fs.readFileSync("frontend/index.html", "utf8");
+          const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+            .map(match => match[1].trim()).filter(Boolean);
+          if (!scripts.length) throw Error("Missing inline frontend script");
+          fs.writeFileSync("/tmp/voicekhata-inline.js", scripts.join("\n;\n"));
+          NODE
+          node --check /tmp/voicekhata-inline.js

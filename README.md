@@ -53,6 +53,18 @@ node --check frontend/whisper-stt.js
 
 Test signing in, saving a transaction, reloading the browser, and confirming the same private ledger entries persist. Use fake transaction data while security and deployment are under review.
 
+## October 2026 reliability and language improvements
+
+- The browser interface has a dedicated, tested Hindi/Hinglish/Marathi transaction parser. The *Hinglish / Auto detect* option no longer forces English transcription.
+- Browser-local Whisper now uses the multilingual base model for improved Hindi accuracy where devices have sufficient resources. This is heavier than the previous tiny model: first download may be larger and CPU/mobile inference may be slower. Actual accuracy depends on accent, microphone and device. Always review transcription and fields before saving.
+- Silent audio, short recordings and some unreliable stock transcripts now produce clearer retry messages.
+- One speech entry can be reviewed and saved at a time in the public interface. Multiple transactions in a sentence are flagged rather than silently dropped.
+- The ledger supports CSV export from the currently loaded workspace. Keep downloaded customer information private.
+- On GitHub Pages, **Google sign-in cannot work without an HTTPS-hosted FastAPI backend, configured Google OAuth client ID, approved JavaScript origin and CORS**. The site shows an explicit offline workspace status instead of pretending login or cloud sync is active.
+- Regression tests for Hindi script, Hindi digits, Hinglish, missing amounts and multi-entry detection run in GitHub Actions.
+
+Use the working demo with *fictional* customers and balances. Avoid real financial records until authentication and production storage are properly configured.
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
