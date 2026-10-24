@@ -357,6 +357,7 @@
           <label style="font-size:11px;color:var(--muted)">To <input class="search-input" id="ledgerDateTo" type="date" onchange="renderLedger()" style="max-width:165px"></label>
           <button class="btn-ghost" type="button" onclick="setLedgerToday()">Today</button>
           <button class="btn-ghost" type="button" onclick="clearLedgerFilters()">All dates</button>
+              <button class="btn-ghost" type="button" onclick="exportLedgerCSV()" title="Download a copy of your currently loaded ledger">⬇ Export CSV</button>
         </div>
         <p class="ledger-count" id="ledgerCount"></p>
         <div class="panel" style="padding:0;overflow:hidden">
@@ -590,6 +591,7 @@ function initApp() {
   $("demoBanner").style.display = demoMode ? "" : "none";
   initSpeech();
   navigate("dashboard");
+  if (window.VoiceKhataCloud?.signedIn()) window.VoiceKhataCloud.loadLedger().catch(error => showToast("Could not load synced ledger: " + error.message));
 }
 
 // ── Navigation ────────────────────────────────────────────
@@ -789,6 +791,32 @@ async function deleteTransaction(id) {
   } catch(error) {
     showToast("Could not delete transaction: " + error.message);
   }
+}
+
+
+function exportLedgerCSV() {
+  // Download only records visible in the current workspace; never send data elsewhere.
+  if (demoMode) { showToast("Sample records are for demonstration only. Save a real transaction before exporting."); return; }
+  if (!transactions.length) { showToast("No transactions to export."); return; }
+  const quote = value => {
+    let cell = String(value == null ? "" : value);
+    // Neutralize formula injection when CSV is opened in spreadsheet software.
+    if (/^[\s]*[=+\-@\t\r]/.test(cell)) cell = "'" + cell;
+    return '"' + cell.replace(/"/g, '""') + '"';
+  };
+  const header = ["Date", "Customer", "Type", "Amount INR", "Note"];
+  const rows = transactions.map(t => [t.created_at, t.customer, kindLabels[t.kind] || t.kind, Number(t.amount).toFixed(2), t.note || ""]);
+  const csv = "\uFEFF" + [header, ...rows].map(row => row.map(quote).join(",")).join("\r\n") + "\r\n";
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "voicekhata-ledger-" + localDateKey(new Date()) + ".csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  showToast("Ledger CSV downloaded. Keep your backup private.");
 }
 
 // ── NLP Parser ────────────────────────────────────────────
