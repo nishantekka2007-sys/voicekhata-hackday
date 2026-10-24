@@ -52,7 +52,9 @@
     const image = document.getElementById("signedInImage");
     if (signIn) signIn.classList.toggle("hidden", !!user);
     if (identity) identity.classList.toggle("hidden", !user);
-    if (name) name.textContent = user ? (user.name || user.email) : "";
+    if (name) name.textContent = user ? (user.name || user.email) : "Not signed in";
+    const topName = document.getElementById("signedInNameTop");
+    if (topName) topName.textContent = user ? (user.name || user.email) : "";
     if (image) {
       image.src = user?.picture || "";
       image.alt = user ? (user.name || "Account photo") : "";
@@ -102,6 +104,7 @@
       } catch {
         setToken("");
         setProfile(null);
+        updateHeader(null);
       }
     } else {
       updateHeader(null);
