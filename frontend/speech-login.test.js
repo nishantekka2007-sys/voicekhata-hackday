@@ -22,3 +22,12 @@ assert.match(html, /id="reviewSpeechWarning"/);
 assert.match(html, /Choose transaction type after checking speech/);
 assert.match(html, /parsed\.kind \|\| ""/);
 assert.match(html, /reviewSpeechWarning/);
+
+assert.match(whisper, /await loadTranscriber\(selectedLanguage\)/);
+assert.match(whisper, /retryTranscription/);
+assert.match(whisper, /chunk_length_s: MAX_TRANSCRIPTION_SECONDS/);
+assert.match(whisper, /num_beams: 3/);
+assert.match(whisper, /TRANSCRIPT KEPT/);
+assert.match(html, /onclick="retryLastAudio\(\)"/);
+assert.match(html, /function retryLastAudio\(\)/);
+assert.match(html, /Correct names, numbers and transaction words/);
