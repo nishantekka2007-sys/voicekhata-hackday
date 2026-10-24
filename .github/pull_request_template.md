@@ -12,11 +12,20 @@
 
 - [ ] Relevant tests pass
 - [ ] I checked the UI manually, if applicable
+-
+
+## How to test
+
+<!-- Commands or manual steps you ran -->
+
+- [ ] Relevant tests pass
+- [ ] UI checked manually, if applicable
 - [ ] Documentation updated, if applicable
 
 ## Screenshots or output
 
 <!-- Add screenshots, API responses, or test output when useful. -->
+<!-- Add screenshots, API responses, or test output where useful -->
 
 ## Checklist
 

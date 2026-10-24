@@ -1,6 +1,11 @@
 /* Google Identity Services sign-in + authenticated API wrapper for VoiceKhata. */
 (() => {
-  const API_BASE = window.VOICEKHATA_API_BASE || "http://127.0.0.1:8000/api";
+  // Set window.VOICEKHATA_API_BASE before this script when the API is hosted separately.
+const API_BASE = window.VOICEKHATA_API_BASE || (
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://127.0.0.1:8000/api"
+    : window.location.origin.replace(/\/$/, "") + "/api"
+);
   const TOKEN_KEY = "voicekhata.google_id_token";
   const PROFILE_KEY = "voicekhata.profile";
   let config = { google_client_id: "", google_login_enabled: false };
@@ -87,7 +92,7 @@
     try {
       config = await request("/auth/config");
     } catch {
-      showAuthError("Cannot reach the backend. Start FastAPI at http://127.0.0.1:8000.");
+      showAuthError("Cannot reach the VoiceKhata API at " + API_BASE + ". Check that the backend is running and the API URL is configured.");
       return;
     }
 
@@ -102,6 +107,10 @@
         const user = await request("/auth/me");
         setProfile(user);
         updateHeader(user);
+        // Restore the real ledger after a page refresh when the session is still valid.
+        if (window.VoiceKhata?.loadFromBackend) {
+          await window.VoiceKhata.loadFromBackend();
+        }
       } catch {
         setToken("");
         setProfile(null);

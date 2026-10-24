@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1B3A9E">
+  <title>GemmaKhata</title>
+  <!-- Fonts load when online; the page falls back to system fonts offline. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Mukta:wght@400;600&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+    <div class="board">
+      <header class="brand">
+        <h1 class="brand-name">GemmaKhata</h1>
+        <p class="brand-line" lang="hi">बोलिए, हिसाब लिख जाएगा</p>
+      </header>
+
+      <div class="langs" id="langs" role="radiogroup" aria-label="Language you will speak">
+        <label class="lang"><input type="radio" name="lang" value="auto" checked><span>Auto</span></label>
+        <label class="lang"><input type="radio" name="lang" value="hinglish"><span>Hinglish</span></label>
+        <label class="lang"><input type="radio" name="lang" value="hi"><span lang="hi">हिंदी</span></label>
+        <label class="lang"><input type="radio" name="lang" value="mr"><span lang="mr">मराठी</span></label>
+        <label class="lang"><input type="radio" name="lang" value="en"><span>English</span></label>
+      </div>
+
+      <div class="mic-zone">
+        <button id="mic" class="mic" type="button" aria-pressed="false" aria-label="Start recording">
+          <svg class="icon icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="2.5" width="6" height="12" rx="3" fill="currentColor"/>
+            <path d="M5.5 11a6.5 6.5 0 0 0 13 0"/>
+            <path d="M12 17.5v4"/>
+            <path d="M8.5 21.5h7"/>
+          </svg>
+          <svg class="icon icon-stop" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/>
+          </svg>
+          <svg class="icon icon-wait" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="3" stroke-dasharray="36 100" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <p id="timer" class="timer" aria-hidden="true">0:00</p>
+        <p id="status" class="status" role="status" aria-live="polite">Tap the mic and speak</p>
+      </div>
+    </div>
+
+    <main class="sheet">
+      <label for="transcript" class="sheet-title">What I heard</label>
+      <textarea id="transcript" rows="5" spellcheck="false" autocomplete="off"
+        placeholder="Your words will appear here. You can fix any word before saving."></textarea>
+      <p id="meta" class="meta"></p>
+
+      <div class="actions">
+        <button id="clear" class="btn" type="button">Clear</button>
+        <button id="upload" class="btn" type="button">Upload audio</button>
+        <input id="file" type="file" accept="audio/*" hidden>
+      </div>
+
+      <p class="tip">Speak like you would to a helper: “Ramesh ne 500 rupaye diye aur Suresh ko 200 rupaye ka chawal udhaar diya.”</p>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

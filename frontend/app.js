@@ -1,5 +1,10 @@
 /* VoiceKhata frontend. Authenticated requests use Google Identity Services. */
-const API_BASE = window.VOICEKHATA_API_BASE || "http://127.0.0.1:8000/api";
+// Set window.VOICEKHATA_API_BASE before this script when the API is hosted separately.
+const API_BASE = window.VOICEKHATA_API_BASE || (
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://127.0.0.1:8000/api"
+    : window.location.origin.replace(/\/$/, "") + "/api"
+);
 const authRequest = (path, options={}) => {
   if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before accessing your ledger.");
   return window.VoiceKhataAuth.request(path, options);
@@ -22,8 +27,19 @@ const DEMO_TRANSACTIONS = [
   {id:5,customer:"Meena Kumari",note:"Monthly grocery",kind:"credit_sale",amount:1250,created_at:new Date(Date.now()-1000*60*450).toISOString()},
   {id:6,customer:"Ramesh Kumar",note:"Old balance",kind:"payment_received",amount:300,created_at:new Date(Date.now()-1000*60*800).toISOString()}
 ];
-let transactions = DEMO_TRANSACTIONS.map(item => ({...item}));
-let demoMode = true;
+const LOCAL_LEDGER_KEY = "voicekhata.preview.transactions.v1";
+function readLocalTransactions(){
+  try {
+    const rows = JSON.parse(localStorage.getItem(LOCAL_LEDGER_KEY) || "[]");
+    return Array.isArray(rows) ? rows.map(normalizeTransaction) : [];
+  } catch { return []; }
+}
+function saveLocalTransactions(){
+  try { localStorage.setItem(LOCAL_LEDGER_KEY, JSON.stringify(transactions)); return true; }
+  catch { showToast("This browser could not save local entries. Check storage settings."); return false; }
+}
+let transactions = readLocalTransactions();
+let demoMode = !window.VoiceKhataAuth?.isSignedIn();
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordingStream = null;
@@ -113,11 +129,11 @@ function normalizeTransaction(raw){
 }
 async function loadFromBackend(){
   if (!window.VoiceKhataAuth?.isSignedIn()) {
-    transactions=[];
-    demoMode=true;
+    transactions = readLocalTransactions();
+    demoMode = true;
     renderAll();
     const banner=$("modeBanner");
-    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Sign in required</strong> — use Google sign-in to load your private ledger. No sample transactions are shown.</span>';
+    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Preview mode</strong> — entries are saved only in this browser for the demo. Sign in to use your private online ledger.</span>';
     return;
   }
   try{
@@ -139,10 +155,12 @@ async function loadFromBackend(){
     }
     renderAll();
   }catch(error){
-    transactions=[];
+    transactions = readLocalTransactions();
     demoMode=true;
     renderAll();
-    showToast(error.message || "Could not load your ledger.");
+    const banner=$("modeBanner");
+    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Offline preview</strong> — the API could not be reached. Your browser-saved demo entries are shown.</span>';
+    showToast("Could not connect to the online ledger. Preview mode is still available.");
   }
 }
 function parseSimpleText(text){
@@ -161,6 +179,8 @@ async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
+  if(!text){showToast("Type a transaction first.");return;}
+  $("understandButton").disabled=true;$("understandButton").textContent="Preparing draft…";
   let parsed;
   const selectedLanguage=$("languageSelect").value;
   const language=selectedLanguage==="mixed"?"auto":selectedLanguage;
@@ -171,11 +191,22 @@ async function understandTransaction(){
       parsed=parseSimpleText(text);
     }
     if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("I could not identify both a customer and an amount. Edit the sentence and try again.");
+    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) parsed=parseSimpleText(text);
+    if(!parsed.customer || !(Number(parsed.amount)>0)) throw new Error("I couldn't find both a customer name and a positive amount. Please enter the details manually below.");
     parsed=normalizeTransaction(parsed);
   }catch(error){
-    showToast((error.message||"Could not understand this transaction.")+" Nothing was saved. Check the backend connection or edit the transcript.");
-    return;
-  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
+    parsed=parseSimpleText(text);
+    if(!parsed.customer || !(Number(parsed.amount)>0)){
+      showToast((error.message||"Could not understand this transaction.")+" You can still enter the fields manually.");
+      $("reviewCustomer").value="";
+      $("reviewKind").value="credit_sale";
+      $("reviewAmount").value="";
+      $("reviewNote").value=text;
+      $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
+      $("reviewMessage").textContent="Please check or enter the transaction details manually.";
+      return;
+    }
+  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Prepare draft <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
   $("reviewProduct").value=parsed.product||parsed.item||"";
@@ -184,7 +215,20 @@ async function understandTransaction(){
   updateLeftAmount();
   $("reviewNote").value=parsed.note||text;
   $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
-  $("reviewMessage").textContent="";
+  $("reviewMessage").textContent="Draft prepared. Verify every field before saving.";
+}
+function openManualEntry(){
+  navigate("voice");
+  $("transcriptInput").value="";
+  $("reviewCustomer").value="";
+  $("reviewKind").value="credit_sale";
+  $("reviewAmount").value="";
+  $("reviewNote").value="";
+  $("confirmCheck").checked=false;
+  $("emptyReview").classList.add("hidden");
+  $("reviewForm").classList.remove("hidden");
+  $("reviewMessage").textContent="Manual entry: fill in the details, verify them, then confirm to save.";
+  $("reviewCustomer").focus();
 }
 function updateLeftAmount(){const due=Number($("reviewAmount").value||0),paid=Number($("reviewPaidAmount").value||0);$("reviewLeftAmount").value=Math.max(0,due-paid).toFixed(2);}
 async function saveTransaction(event){
@@ -196,6 +240,12 @@ async function saveTransaction(event){
   const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
     if (window.VoiceKhataAuth?.isSignedIn()) {
+  const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
+  if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and enter an amount greater than zero.");return;}
+  if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
+  const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
+  try{
+    if(window.VoiceKhataAuth?.isSignedIn()){
       const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
       transactions.unshift(normalizeTransaction(saved));
       demoMode=false;
@@ -206,6 +256,12 @@ async function saveTransaction(event){
       localStorage.setItem("voicekhata.demo.transactions.v1",JSON.stringify(transactions));
       demoMode=true;
       showToast("Demo transaction saved in this browser only.");
+      transactions.unshift({...item,id:Date.now(),created_at:new Date().toISOString()});
+      demoMode=true;
+      if(!saveLocalTransactions()){transactions.shift();button.disabled=false;return;}
+      const banner=$("modeBanner");
+      if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Preview mode</strong> — this entry is saved locally in this browser, not to an online account.</span>';
+      showToast("Transaction saved in this browser for the demo.");
     }
   }catch(error){
     button.disabled=false;
@@ -330,6 +386,7 @@ document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener
 document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.go)));
 $("setupForm").addEventListener("submit",finishSetup);
 $("signOutButton").addEventListener("click",logOutToSetup);
+document.querySelectorAll("[data-manual-entry]").forEach(button=>button.addEventListener("click",openManualEntry));
 $("recordButton").addEventListener("click",startRecording);
 $("understandButton").addEventListener("click",understandTransaction);
 $("reviewForm").addEventListener("submit",saveTransaction);
@@ -352,4 +409,9 @@ if(!window.VoiceKhataAuth?.isSignedIn()){
   demoMode=true;
 }
 renderAll();
+renderAll();
+loadFromBackend();
+document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());
+document.addEventListener("voicekhata:signed-out",()=>{transactions=readLocalTransactions();demoMode=true;renderAll();loadFromBackend();});
+document.addEventListener("voicekhata:auth-required",()=>{transactions=[];demoMode=true;renderAll();showToast("Your session needs Google sign-in again.");});
 window.VoiceKhata={loadFromBackend,renderAll};
