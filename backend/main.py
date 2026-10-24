@@ -111,14 +111,7 @@ class TransactionParse(BaseModel):
     language: str = Field(default="auto", max_length=10)
 
 
-def authenticated_user(authorization: str | None = Header(default=None)) -> dict:
-    """Resolve a verified Google identity token; tokens are never stored in SQLite."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sign in with Google to continue.")
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing access credential.")
-
+def _verify_google_token(token: str) -> dict:
     try:
         response = httpx.get(
             "https://oauth2.googleapis.com/tokeninfo",
@@ -130,17 +123,22 @@ def authenticated_user(authorization: str | None = Header(default=None)) -> dict
     except (httpx.HTTPError, ValueError):
         raise HTTPException(status_code=401, detail="Google sign-in could not be verified.") from None
 
-    if GOOGLE_CLIENT_ID and payload.get("aud") != GOOGLE_CLIENT_ID:
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google login is not configured. Set GOOGLE_CLIENT_ID.")
+    if payload.get("aud") != GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=401, detail="Google token audience does not match this app.")
     if payload.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
         raise HTTPException(status_code=401, detail="Invalid Google token issuer.")
-    if payload.get("email_verified") not in {"true", True}:
+    if str(payload.get("email_verified")).lower() != "true":
         raise HTTPException(status_code=401, detail="Use a verified Google account.")
-    google_sub = payload.get("sub")
-    email = payload.get("email", "").strip().lower()
-    if not google_sub or not email:
+    if not payload.get("sub") or not payload.get("email"):
         raise HTTPException(status_code=401, detail="Google did not return a verified identity.")
+    return payload
 
+
+def _upsert_user(payload: dict) -> dict:
+    google_sub = payload["sub"]
+    email = str(payload["email"]).strip().lower()
     with db() as conn:
         conn.execute(
             """INSERT INTO users (google_sub, email, name, picture, created_at)
@@ -149,11 +147,20 @@ def authenticated_user(authorization: str | None = Header(default=None)) -> dict
                  email=excluded.email, name=excluded.name, picture=excluded.picture""",
             (google_sub, email, payload.get("name", ""), payload.get("picture", ""), utc_now()),
         )
-        user = conn.execute("SELECT * FROM users WHERE google_sub = ?", (google_sub,)).fetchone()
-        if user is None:
+        row = conn.execute("SELECT * FROM users WHERE google_sub = ?", (google_sub,)).fetchone()
+        if row is None:
             raise HTTPException(status_code=401, detail="Could not create user profile.")
-        return dict(user)
+        return dict(row)
 
+
+def authenticated_user(authorization: str | None = Header(default=None)) -> dict:
+    """Resolve a verified Google identity token; tokens are never stored in SQLite."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in with Google to continue.")
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing access credential.")
+    return _upsert_user(_verify_google_token(token))
 
 def public_transaction(row: sqlite3.Row | dict) -> dict:
     item = dict(row)
@@ -174,45 +181,8 @@ def auth_config():
 
 @app.post("/api/auth/google")
 def google_login(body: GoogleCredential):
-    """Verify a Google Identity Services ID token and return the app profile."""
-    if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=503, detail="Google login is not configured. Set GOOGLE_CLIENT_ID.")
-    user = _verify_and_get_user(body.credential)
-    return _profile(user)
-
-
-def _verify_and_get_user(token: str) -> dict:
-    try:
-        response = httpx.get(
-            "https://oauth2.googleapis.com/tokeninfo",
-            params={"id_token": token},
-            timeout=8.0,
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except (httpx.HTTPError, ValueError):
-        raise HTTPException(status_code=401, detail="Google sign-in could not be verified.") from None
-    if payload.get("aud") != GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=401, detail="Google token audience does not match this app.")
-    if payload.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
-        raise HTTPException(status_code=401, detail="Invalid Google token issuer.")
-    if str(payload.get("email_verified")).lower() != "true":
-        raise HTTPException(status_code=401, detail="Use a verified Google account.")
-    google_sub = payload.get("sub")
-    email = str(payload.get("email", "")).strip().lower()
-    if not google_sub or not email:
-        raise HTTPException(status_code=401, detail="Google did not return a verified identity.")
-    with db() as conn:
-        conn.execute(
-            """INSERT INTO users (google_sub, email, name, picture, created_at)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(google_sub) DO UPDATE SET
-                 email=excluded.email, name=excluded.name, picture=excluded.picture""",
-            (google_sub, email, payload.get("name", ""), payload.get("picture", ""), utc_now()),
-        )
-        row = conn.execute("SELECT * FROM users WHERE google_sub = ?", (google_sub,)).fetchone()
-        return dict(row)
-
+    """Verify a Google Identity Services ID token and return the profile."""
+    return _profile(_upsert_user(_verify_google_token(body.credential)))
 
 def _profile(user: dict) -> dict:
     return {
