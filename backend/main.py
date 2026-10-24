@@ -153,13 +153,16 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import subprocess
+import tempfile
+from functools import lru_cache
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -223,6 +226,9 @@ def init_db() -> None:
             customer TEXT NOT NULL,
             kind TEXT NOT NULL CHECK(kind IN ('credit_sale','payment_received','cash_expense')),
             amount_paise INTEGER NOT NULL CHECK(amount_paise > 0),
+            product TEXT NOT NULL DEFAULT '',
+            paid_amount_paise INTEGER NOT NULL DEFAULT 0 CHECK(paid_amount_paise >= 0),
+            left_amount_paise INTEGER NOT NULL DEFAULT 0 CHECK(left_amount_paise >= 0),
             note TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL
         );
@@ -231,6 +237,14 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_transactions_user_customer
             ON transactions(user_id, customer COLLATE NOCASE);
         """)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(transactions)").fetchall()}
+        if "product" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN product TEXT NOT NULL DEFAULT ''")
+        if "paid_amount_paise" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN paid_amount_paise INTEGER NOT NULL DEFAULT 0")
+        if "left_amount_paise" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN left_amount_paise INTEGER NOT NULL DEFAULT 0")
+            conn.execute("UPDATE transactions SET left_amount_paise=amount_paise WHERE kind='credit_sale'")
 
 
 @app.on_event("startup")
@@ -250,6 +264,9 @@ class TransactionCreate(BaseModel):
     kind: Kind
     amount: float = Field(gt=0, le=100_000_000)
     note: str = Field(default="", max_length=1000)
+    product: str = Field(default="", max_length=200)
+    paid_amount: float = Field(default=0, ge=0, le=100_000_000)
+    left_amount: float | None = Field(default=None, ge=0, le=100_000_000)
 
 
 class TransactionParse(BaseModel):
@@ -317,14 +334,83 @@ def _profile(user: dict) -> dict:
 
 def _public_transaction(row: sqlite3.Row | dict) -> dict:
     item = dict(row)
-    item["amount"] = item.pop("amount_paise") / 100
+    amount_paise = item.pop("amount_paise")
+    item["amount"] = amount_paise / 100
+    item["paid_amount"] = item.pop("paid_amount_paise", 0) / 100
+    item["left_amount"] = item.pop("left_amount_paise", amount_paise if item.get("kind") == "credit_sale" else 0) / 100
     return item
-
 
 @app.get("/api/health")
 def health():
     init_db()
-    return {"status": "ok", "service": "VoiceKhata API", "database": "sqlite"}
+    return {"status": "ok", "service": "VoiceKhata API", "database": "sqlite", "speech_model": os.getenv("GEMMA_MODEL_ID", "google/gemma-4-E2B-it")}
+
+
+@lru_cache(maxsize=1)
+def _gemma_audio_pipeline():
+    """Load Gemma 4 on the first request rather than during API startup."""
+    try:
+        from transformers import pipeline
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="Gemma 4 dependencies missing. Run pip install -r backend/requirements.txt.") from exc
+    model_id = os.getenv("GEMMA_MODEL_ID", "google/gemma-4-E2B-it")
+    try:
+        return pipeline(task="any-to-any", model=model_id, device_map="auto", dtype="auto")
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Could not load {model_id}. Check model access, memory, and Transformers installation.") from exc
+
+
+@app.post("/api/voice/transcribe")
+async def transcribe_voice(
+    file: UploadFile = File(...),
+    language: str = Form(default="auto"),
+    authorization: str | None = Header(default=None),
+):
+    """Transcribe browser audio with Gemma 4. This endpoint never saves a transaction."""
+    if GOOGLE_CLIENT_ID:
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Sign in with Google before using voice entry.")
+        authenticated_user(authorization)
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="The recording is empty. Please record again.")
+    if len(audio_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Recording is too large. Keep it under 30 seconds.")
+
+    with tempfile.TemporaryDirectory(prefix="voicekhata-") as temp_dir:
+        source = Path(temp_dir) / Path(file.filename or "recording.webm").name
+        wav_path = Path(temp_dir) / "recording.wav"
+        source.write_bytes(audio_bytes)
+        try:
+            converted = subprocess.run(
+                ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", str(source),
+                 "-vn", "-ac", "1", "-ar", "16000", "-t", "30", str(wav_path)],
+                capture_output=True, text=True, timeout=25, check=False,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=503, detail="FFmpeg is required. Install it with: brew install ffmpeg.") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(status_code=408, detail="Audio conversion timed out. Try a shorter recording.") from exc
+        if converted.returncode != 0 or not wav_path.exists() or wav_path.stat().st_size < 100:
+            raise HTTPException(status_code=400, detail="Could not decode this browser recording. Please record again.")
+
+        language_names = {"auto": "its original language", "en": "English", "hi": "Hindi", "bn": "Bengali"}
+        target_language = language_names.get(language, "its original language")
+        messages = [{"role": "user", "content": [
+            {"type": "text", "text": f"Transcribe the following speech segment in {target_language} into text. Only output the transcription, with no newlines. Preserve the spoken language. Write spoken numbers as digits. Do not explain or summarize."},
+            {"type": "audio", "audio": str(wav_path)},
+        ]}]
+        try:
+            output = _gemma_audio_pipeline()(messages, return_full_text=False, generate_kwargs={"max_new_tokens": 128})
+            transcript = str(output[0].get("generated_text", "")).strip()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Gemma 4 could not transcribe this recording. Try a clearer or shorter sentence.") from exc
+        if not transcript:
+            raise HTTPException(status_code=422, detail="Gemma 4 returned an empty transcript. Please speak clearly and retry.")
+        return {"text": transcript, "transcript": transcript, "model": os.getenv("GEMMA_MODEL_ID", "google/gemma-4-E2B-it")}
 
 
 @app.get("/api/auth/config")
@@ -361,13 +447,17 @@ def create_transaction(body: TransactionCreate, user: dict = Depends(authenticat
     if not customer:
         raise HTTPException(status_code=422, detail="Customer name is required.")
     amount_paise = round(body.amount * 100)
+    paid_paise = round(body.paid_amount * 100)
+    left_paise = round((body.left_amount if body.left_amount is not None else body.amount - body.paid_amount) * 100)
     if amount_paise <= 0:
-        raise HTTPException(status_code=422, detail="Amount must be at least ₹0.01.")
+        raise HTTPException(status_code=422, detail="Due amount must be greater than zero.")
+    if paid_paise > amount_paise or left_paise < 0 or paid_paise + left_paise != amount_paise:
+        raise HTTPException(status_code=422, detail="Paid amount plus left amount must equal due amount.")
     with db() as conn:
         cursor = conn.execute(
-            """INSERT INTO transactions (user_id, customer, kind, amount_paise, note, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user["id"], customer, body.kind, amount_paise, body.note.strip(), utc_now()),
+            """INSERT INTO transactions (user_id, customer, kind, amount_paise, product, paid_amount_paise, left_amount_paise, note, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user["id"], customer, body.kind, amount_paise, body.product.strip(), paid_paise, left_paise, body.note.strip(), utc_now()),
         )
         row = conn.execute("SELECT * FROM transactions WHERE id=?", (cursor.lastrowid,)).fetchone()
     return _public_transaction(row)
@@ -387,13 +477,14 @@ def get_summary(user: dict = Depends(authenticated_user)):
     for item in transactions:
         if item["kind"] != "cash_expense":
             balances[item["customer"]] = balances.get(item["customer"], 0.0) + (
-                item["amount"] if item["kind"] == "credit_sale" else -item["amount"]
+                item.get("left_amount", item["amount"]) if item["kind"] == "credit_sale" else -item["amount"]
             )
         if item["created_at"].startswith(today):
             if item["kind"] == "payment_received":
                 collected_today += item["amount"]
             elif item["kind"] == "credit_sale":
                 credit_today += item["amount"]
+                collected_today += item.get("paid_amount", 0.0)
     credit_rows = [x for x in transactions if x["kind"] == "credit_sale"]
     payment_rows = [x for x in transactions if x["kind"] == "payment_received"]
     return {

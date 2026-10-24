@@ -9,18 +9,33 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="auth.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="app-shell">
+  <section id="getStarted" class="get-started">
+    <div class="onboarding-card">
+      <a class="brand onboarding-brand" href="#" aria-label="VoiceKhata home"><span class="brand-mark">vk</span><span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span></a>
+      <p class="eyebrow">A SIMPLE DIGITAL KHATA</p>
+      <h1>Let’s set up your shop.</h1>
+      <p class="onboarding-copy">Start with your name and shop name. Your dashboard will be ready in a moment.</p>
+      <form id="setupForm" class="setup-form">
+        <label class="field-label" for="setupOwnerName">Your name</label>
+        <input id="setupOwnerName" name="ownerName" autocomplete="name" required maxlength="80" placeholder="e.g. Nishant Ekka">
+        <label class="field-label" for="setupShopName">Shop name</label>
+        <input id="setupShopName" name="shopName" required maxlength="100" placeholder="e.g. Ekka General Store">
+        <button class="primary-button full-button" type="submit">Get started <span>→</span></button>
+      </form>
+      <p class="onboarding-footnote">This demo keeps your shop profile and entries in this browser. No Google sign-in is needed for this setup.</p>
+    </div>
+  </section>
+  <div class="app-shell hidden">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#" aria-label="VoiceKhata home">
         <span class="brand-mark" aria-hidden="true">vk</span>
         <span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span>
       </a>
+      <div class="shop-switcher"><span class="shop-avatar">VK</span><span><strong id="shopNameLabel">Your shop</strong><small id="shopOwnerLabel">Owner account</small></span><span class="chevron">⌄</span></div>
       <div class="shop-switcher"><span class="shop-avatar">VK</span><span><strong id="shopNameLabel">Your shop</strong><small id="shopOwnerLabel">Set up your shop</small></span><span class="chevron">⌄</span></div>
       <p class="nav-label">WORKSPACE</p>
       <nav class="nav-list" aria-label="Main navigation">
@@ -31,8 +46,8 @@
       </nav>
       <div class="sidebar-bottom">
         <div class="help-card"><span class="help-icon">✦</span><strong>Your digital khata</strong><p>Speak naturally. Review the details. Save with confidence.</p><button id="helpButton" class="text-button">How it works <span>↗</span></button></div>
-        <div class="profile-row" id="accountProfile"><span class="profile-avatar">VK</span><span><strong id="signedInName">Not signed in</strong><small>Google account</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
-        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Sign out</button></div>
+        <div class="profile-row" id="accountProfile"><span class="profile-avatar" id="profileAvatar">VK</span><span><strong id="signedInName">Shop owner</strong><small>Shop profile</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
+        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Log out</button></div>
       </div>
     </aside>
 
@@ -40,10 +55,10 @@
       <header class="topbar">
         <button id="menuButton" class="icon-button mobile-menu" aria-label="Open menu">☰</button>
         <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumbCurrent">Overview</strong></div>
-        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="google-auth-wrap"><div id="googleSignIn" aria-label="Sign in with Google"></div><div id="signedInIdentity" class="signed-in-identity hidden"><img id="signedInImage" class="signed-in-image hidden" alt=""><span id="signedInNameTop"></span></div><p id="authMessage" class="auth-message" role="status"></p></div></div>
+        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="signed-in-identity"><span id="signedInNameTop"></span></div></div>
       </header>
 
-      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Preview mode</strong> — sign in with Google to access your private ledger. Sample data is not saved.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
+      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Browser demo</strong> — your entries are saved in this browser.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
 
       <section class="view active-view" id="view-dashboard">
         <div class="page-heading">
@@ -51,6 +66,10 @@
           <button class="primary-button" data-go="voice"><span>＋</span> Add transaction</button>
         </div>
         <div class="metric-grid">
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Total to collect</span><span class="metric-icon green-icon">₹</span></div><div class="metric-value" id="totalDue">₹12,450</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>based on recorded entries</span></div><div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Collected today</span><span class="metric-icon lilac-icon">↙</span></div><div class="metric-value" id="collectedToday">₹3,200</div><div class="metric-foot"><span class="trend neutral">Payments</span><span>recorded today</span></div><div class="mini-bars lilac-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Credit given today</span><span class="metric-icon peach-icon">↗</span></div><div class="metric-value" id="creditToday">₹1,850</div><div class="metric-foot"><span class="trend neutral" id="creditCountToday">0 transactions</span><span>recorded today</span></div><div class="mini-bars peach-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Active customers</span><span class="metric-icon blue-icon">♙</span></div><div class="metric-value" id="activeCustomers">48</div><div class="metric-foot"><span class="trend neutral">From ledger</span><span>unique customers</span></div><div class="avatar-stack"><span>RK</span><span>AS</span><span>PM</span><span>+45</span></div></article>
           <article class="metric-card"><div class="metric-top"><span class="metric-label">Total to collect</span><span class="metric-icon green-icon">₹</span></div><div class="metric-value" id="totalDue">₹0</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>from your ledger</span></div><div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
           <article class="metric-card"><div class="metric-top"><span class="metric-label">Collected today</span><span class="metric-icon lilac-icon">↙</span></div><div class="metric-value" id="collectedToday">₹0</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>today</span></div><div class="mini-bars lilac-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
           <article class="metric-card"><div class="metric-top"><span class="metric-label">Credit given today</span><span class="metric-icon peach-icon">↗</span></div><div class="metric-value" id="creditToday">₹0</div><div class="metric-foot"><span class="trend neutral">Live total</span><span>today</span></div><div class="mini-bars peach-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
@@ -69,6 +88,8 @@
       <section class="view" id="view-voice">
         <div class="page-heading"><div><p class="eyebrow">FAST & NATURAL</p><h1>Voice entry <span class="wave">✳</span></h1><p class="subheading">Type a transaction to prepare a draft, or enter details manually. Voice transcription is not connected yet.</p></div></div>
         <div class="voice-layout">
+          <article class="panel voice-card"><div class="voice-card-top"><span class="voice-orb">◉</span><span class="voice-status" id="recordStatus">READY WHEN YOU ARE</span></div><h2>What happened at your shop?</h2><p class="muted">Speak naturally in Hindi, English, Bengali, or a mix of Hindi and English.</p><div class="record-area"><button id="recordButton" class="record-button" aria-label="Start recording"><span>🎙</span></button><p id="recordHint">Gemma 4 speech-to-text — tap to record</p><small>Allow microphone access when asked. You can also type instead.</small></div><label class="field-label" for="transcriptInput">Transaction details</label><textarea id="transcriptInput" rows="3" placeholder="Try: Ramesh ko 2 kilo chawal 500 rupaye udhaar diya…"></textarea><p class="field-help">Examples: “मोहन ने ₹200 दे दिए” · “Mohan paid ₹200” · “মোহন ২০০ টাকা দিয়েছে”</p><div class="field-row"><label class="field-label" for="languageSelect">Language</label><select id="languageSelect" class="select-control"><option value="auto">Auto detect (recommended)</option><option value="mixed">Hindi + English mix (Hinglish)</option><option value="en">English</option><option value="hi">Hindi</option><option value="bn">Bengali</option></select></div><button id="understandButton" class="primary-button full-button">Understand transaction <span>→</span></button><p class="privacy-note">🔒 Voice is transcribed first, then AI prepares a draft. Nothing is saved until you review and confirm.</p></article>
+          <article class="panel review-card"><div class="panel-heading"><div><h2>Review your entry</h2><p>Check every detail before saving</p></div><span class="review-step">STEP 2 OF 2</span></div><div id="emptyReview" class="empty-review"><span class="empty-review-icon">✦</span><strong>Your transaction will appear here</strong><p>Record or type what happened, then choose “Understand transaction”.</p></div><form id="reviewForm" class="review-form hidden"><div class="parsed-badge"><span>✓</span> Details extracted — please verify</div><label class="field-label" for="reviewCustomer">Customer / name</label><input id="reviewCustomer" required placeholder="Customer name"><label class="field-label" for="reviewKind">Transaction type</label><select id="reviewKind" class="select-control"><option value="credit_sale">Credit sale — customer owes you</option><option value="payment_received">Payment received</option><option value="cash_expense">Shop expense</option></select><label class="field-label" for="reviewProduct">Product</label><input id="reviewProduct" placeholder="e.g. 2 kg rice"><label class="field-label" for="reviewAmount">Due / bill amount (₹)</label><input id="reviewAmount" type="number" min="0" step="0.01" required placeholder="0.00"><label class="field-label" for="reviewPaidAmount">Paid now (₹)</label><input id="reviewPaidAmount" type="number" min="0" step="0.01" value="0" placeholder="0.00"><label class="field-label" for="reviewLeftAmount">Left to pay (₹)</label><input id="reviewLeftAmount" type="number" step="0.01" readonly value="0"><small class="field-help">Calculated automatically: due amount − paid now.</small><label class="field-label" for="reviewNote">Extra note</label><input id="reviewNote" placeholder="Optional details"><label class="confirm-check"><input id="confirmCheck" type="checkbox" required><span>I checked the name, amount, and transaction type.</span></label><button class="primary-button full-button" type="submit">Confirm & save <span>✓</span></button><p class="review-message" id="reviewMessage" role="status"></p></form></article>
           <article class="panel voice-card"><div class="voice-card-top"><span class="voice-orb">◉</span><span class="voice-status" id="recordStatus">READY WHEN YOU ARE</span></div><h2>What happened at your shop?</h2><p class="muted">Voice transcription is not connected yet. You can type a transaction below; verify every extracted detail before saving.</p><div class="record-area"><button id="recordButton" class="record-button" aria-label="Start recording"><span>🎙</span></button><p id="recordHint">Speech-to-text integration pending</p><small>Allow microphone access when asked. You can also type instead.</small></div><label class="field-label" for="transcriptInput">Transaction details</label><textarea id="transcriptInput" rows="3" placeholder="Try: Ramesh ko 2 kilo chawal 500 rupaye udhaar diya…"></textarea><p class="field-help">Examples: “मोहन ने ₹200 दे दिए” · “Mohan paid ₹200” · “মোহন ২০০ টাকা দিয়েছে”</p><div class="field-row"><label class="field-label" for="languageSelect">Language</label><select id="languageSelect" class="select-control"><option value="auto">Auto detect (recommended)</option><option value="mixed">Hindi + English mix (Hinglish)</option><option value="en">English</option><option value="hi">Hindi</option><option value="bn">Bengali</option></select></div><button id="understandButton" class="primary-button full-button">Prepare draft <span>→</span></button><p class="privacy-note">🔒 Review the extracted details carefully. Nothing is saved until you confirm.</p></article>
           <article class="panel review-card"><div class="panel-heading"><div><h2>Review your entry</h2><p>Check every detail before saving</p></div><span class="review-step">STEP 2 OF 2</span></div><div id="emptyReview" class="empty-review"><span class="empty-review-icon">✦</span><strong>Your transaction will appear here</strong><p>The text parser is a basic prototype and may misread names or items. Verify every field. For direct manual entry, use the dashboard’s “Enter transaction details” action.</p></div><form id="reviewForm" class="review-form hidden"><div class="parsed-badge"><span>✓</span> Details extracted — please verify</div><label class="field-label" for="reviewCustomer">Customer / name</label><input id="reviewCustomer" required placeholder="Customer name"><label class="field-label" for="reviewKind">Transaction type</label><select id="reviewKind" class="select-control"><option value="credit_sale">Credit sale — customer owes you</option><option value="payment_received">Payment received</option><option value="cash_expense">Shop expense</option></select><label class="field-label" for="reviewAmount">Amount (₹)</label><input id="reviewAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><label class="field-label" for="reviewNote">Item / note</label><input id="reviewNote" placeholder="e.g. 2 kg rice"><label class="confirm-check"><input id="confirmCheck" type="checkbox" required><span>I checked the name, amount, and transaction type.</span></label><button class="primary-button full-button" type="submit">Confirm & save <span>✓</span></button><p class="review-message" id="reviewMessage" role="status"></p></form></article>
         </div>

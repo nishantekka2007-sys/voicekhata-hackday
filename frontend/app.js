@@ -9,6 +9,16 @@ const authRequest = (path, options={}) => {
   if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before accessing your ledger.");
   return window.VoiceKhataAuth.request(path, options);
 };
+const apiRequest = async (path, options={}) => {
+  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
+  const headers = {Accept:"application/json", ...(options.body instanceof FormData ? {} : {"Content-Type":"application/json"}), ...(options.headers||{})};
+  let response;
+  try { response = await fetch(API_BASE + path, {...options, headers}); }
+  catch { throw new Error("Cannot reach backend. Start FastAPI at http://127.0.0.1:8000."); }
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.detail || "Request failed (" + response.status + ")");
+  return data;
+};
 const DEMO_TRANSACTIONS = [
   {id:1,customer:"Ramesh Kumar",note:"2 kg basmati rice",kind:"credit_sale",amount:500,created_at:new Date(Date.now()-1000*60*24).toISOString()},
   {id:2,customer:"Anita Devi",note:"Part payment",kind:"payment_received",amount:1200,created_at:new Date(Date.now()-1000*60*87).toISOString()},
@@ -44,7 +54,7 @@ function dateTime(value){const d=new Date(value);return Number.isNaN(d.getTime()
 function initials(name){return String(name||"?").trim().split(/\s+/).slice(0,2).map(word=>word[0]||"").join("").toUpperCase();}
 function kindClass(kind){return kind==="credit_sale"?"type-credit":kind==="payment_received"?"type-payment":"type-expense";}
 function amountText(item){const sign=item.kind==="credit_sale"?"+":item.kind==="payment_received"?"−":"−";return sign+rupees(item.amount);}
-function transactionRow(item,index){return `<tr><td><div class="person-cell"><span class="person-avatar tone-${index%4}">${esc(initials(item.customer))}</span><span class="person-details"><strong>${esc(item.customer)}</strong><small>${esc(item.note||"No note added")}</small></span></div></td><td><span class="type-pill ${kindClass(item.kind)}">${esc(kindLabels[item.kind]||item.kind)}</span></td><td>${esc(dateTime(item.created_at))}</td><td class="amount-cell ${item.kind!=="payment_received"?"outgoing":""}">${esc(amountText(item))}</td><td><span class="status-pill">✓ Saved</span></td></tr>`;}
+function transactionRow(item,index){return `<tr><td><div class="person-cell"><span class="person-avatar tone-${index%4}">${esc(initials(item.customer))}</span><span class="person-details"><strong>${esc(item.customer)}</strong><small>${esc([item.product,item.note].filter(Boolean).join(" · ")||"No note added")}</small></span></div></td><td><span class="type-pill ${kindClass(item.kind)}">${esc(kindLabels[item.kind]||item.kind)}</span></td><td>${esc(dateTime(item.created_at))}</td><td class="amount-cell ${item.kind!=="payment_received"?"outgoing":""}">${esc(amountText(item))}</td><td><span class="status-pill">✓ Saved</span></td></tr>`;}
 function renderTransactions(){
   const recent=[...transactions].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   $("recentRows").innerHTML=recent.slice(0,5).map(transactionRow).join("")||'<tr><td colspan="5">No transactions yet.</td></tr>';
@@ -57,7 +67,7 @@ function balancesByCustomer(){
   const balances={};
   for(const item of transactions){
     if(item.kind==="cash_expense")continue;
-    balances[item.customer]=(balances[item.customer]||0)+(item.kind==="credit_sale"?Number(item.amount):-Number(item.amount));
+    balances[item.customer]=(balances[item.customer]||0)+(item.kind==="credit_sale"?Number(item.left_amount??item.amount):-Number(item.amount));
   }
   return Object.entries(balances).map(([customer,balance])=>({customer,balance})).sort((a,b)=>a.customer.localeCompare(b.customer));
 }
@@ -76,10 +86,11 @@ function updateMetrics(){
   $("totalDue").textContent=rupees(due);
   $("collectedToday").textContent=rupees(collected);
   $("creditToday").textContent=rupees(credit);
+  const creditCount=$("creditCountToday");if(creditCount)creditCount.textContent=todayRows.filter(item=>item.kind==="credit_sale").length+" transactions";
   $("activeCustomers").textContent=String(balances.length);
   const title=document.querySelector("#view-dashboard .page-heading h1");
-  const user=window.VoiceKhataAuth?.profile();
-  if(title) title.innerHTML="Welcome"+(user?.name ? ", "+esc(user.name.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
+  const user=getShopProfile();
+  if(title) title.innerHTML="Welcome"+(user?.ownerName ? ", "+esc(user.ownerName.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
 }
 function renderChart(){
   const canvas=$("moneyChart");if(!canvas||!window.Chart)return;
@@ -113,14 +124,8 @@ function navigate(view){
   $("sidebar").classList.remove("open");
   window.scrollTo({top:0,behavior:"smooth"});
 }
-async function apiRequest(path,options={}){
-  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
-  const response=await fetch(API_BASE+path,{...options,headers:{"Accept":"application/json",...(options.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(options.headers||{})}});
-  if(!response.ok)throw new Error("API request failed ("+response.status+")");
-  return response.status===204?null:response.json();
-}
 function normalizeTransaction(raw){
-  return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),created_at:raw.created_at??new Date().toISOString()};
+  return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),product:raw.product??"",paid_amount:Number(raw.paid_amount??0),left_amount:Number(raw.left_amount??raw.amount??0),created_at:raw.created_at??new Date().toISOString()};
 }
 async function loadFromBackend(){
   if (!window.VoiceKhataAuth?.isSignedIn()) {
@@ -159,19 +164,21 @@ async function loadFromBackend(){
   }
 }
 function parseSimpleText(text){
-  const amountMatch=text.match(/(?:₹|rs\.?\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?:\s*(?:rupees?|rs\.?))?/i);
+  const amountMatch=text.match(/(?:₹|rs\.?\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?:\s*(?:rupees?|rs\.?|rupaye|rupya|रुपये|रुपया))?/i);
   const amount=amountMatch?Number(amountMatch[1].replace(/,/g,"")):0;
   const lower=text.toLowerCase();
-  const kind=/\b(paid|payment|gave me|repaid|returned|collected)\b/.test(lower)?"payment_received":/\b(expense|electricity bill|rent|bought for shop)\b/.test(lower)?"cash_expense":"credit_sale";
+  const kind=/\b(paid|payment|gave me|repaid|returned|collected|jama kiya|paise mile|wapas kiya)\b/.test(lower)?"payment_received":/\b(expense|electricity bill|rent|bought for shop|kharcha|dukaan ke liye kharida)\b/.test(lower)?"cash_expense":"credit_sale";
   let customer=text.trim();
   if(amountMatch)customer=customer.replace(amountMatch[0]," ");
-  customer=customer.replace(/\b(on credit|as credit|credit|worth of|worth|rupees?|rs\.?|paid|payment|gave me|repaid|returned|collected|took|bought|for|to|from|the|me|and)\b/gi," ").replace(/[₹,:]/g," ").replace(/\s+/g," ").trim();
+  customer=customer.replace(/\b(on credit|as credit|credit|worth of|worth|rupees?|rupaye|rupya|rs\.?|paid|payment|gave me|repaid|returned|collected|took|bought|for|to|from|the|me|and|ko|ka|ki|ke|udhaar|diya|diye|liya|liye|jama|kiya|kharcha)\b/gi," ").replace(/[₹,:]/g," ").replace(/\s+/g," ").trim();
   const words=customer.split(" ").filter(Boolean);
   const name=words.slice(0,2).join(" ").replace(/\b\w/g,c=>c.toUpperCase());
   return {customer:name,kind,amount,note:text.trim()};
 }
 async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
+  if(!text){showToast("Record or type a transaction first.");return;}
+  $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
   if(!text){showToast("Type a transaction first.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Preparing draft…";
   let parsed;
@@ -183,6 +190,7 @@ async function understandTransaction(){
     } else {
       parsed=parseSimpleText(text);
     }
+    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("I could not identify both a customer and an amount. Edit the sentence and try again.");
     if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) parsed=parseSimpleText(text);
     if(!parsed.customer || !(Number(parsed.amount)>0)) throw new Error("I couldn't find both a customer name and a positive amount. Please enter the details manually below.");
     parsed=normalizeTransaction(parsed);
@@ -201,7 +209,10 @@ async function understandTransaction(){
   }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Prepare draft <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
+  $("reviewProduct").value=parsed.product||parsed.item||"";
   $("reviewAmount").value=parsed.amount||"";
+  $("reviewPaidAmount").value=Number(parsed.paid_amount||0);
+  updateLeftAmount();
   $("reviewNote").value=parsed.note||text;
   $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
   $("reviewMessage").textContent="Draft prepared. Verify every field before saving.";
@@ -219,8 +230,16 @@ function openManualEntry(){
   $("reviewMessage").textContent="Manual entry: fill in the details, verify them, then confirm to save.";
   $("reviewCustomer").focus();
 }
+function updateLeftAmount(){const due=Number($("reviewAmount").value||0),paid=Number($("reviewPaidAmount").value||0);$("reviewLeftAmount").value=Math.max(0,due-paid).toFixed(2);}
 async function saveTransaction(event){
   event.preventDefault();
+  const due=Number($("reviewAmount").value), paid=Number($("reviewPaidAmount").value||0), left=Number((due-paid).toFixed(2));
+  const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:due,product:$("reviewProduct").value.trim(),paid_amount:paid,left_amount:left,note:$("reviewNote").value.trim()};
+  if(!item.customer||!Number.isFinite(due)||due<=0||!Number.isFinite(paid)||paid<0||paid>due){showToast("Check customer and amounts. Paid now cannot exceed due amount.");return;}
+  if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
+  const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
+  try{
+    if (window.VoiceKhataAuth?.isSignedIn()) {
   const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
   if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and enter an amount greater than zero.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
@@ -232,6 +251,11 @@ async function saveTransaction(event){
       demoMode=false;
       showToast("Transaction saved to your private ledger.");
     } else {
+      const saved={...item,id:Date.now(),created_at:new Date().toISOString()};
+      transactions.unshift(saved);
+      localStorage.setItem("voicekhata.demo.transactions.v1",JSON.stringify(transactions));
+      demoMode=true;
+      showToast("Demo transaction saved in this browser only.");
       transactions.unshift({...item,id:Date.now(),created_at:new Date().toISOString()});
       demoMode=true;
       if(!saveLocalTransactions()){transactions.shift();button.disabled=false;return;}
@@ -249,39 +273,108 @@ async function saveTransaction(event){
   renderAll();navigate("ledger");
 }
 async function startRecording(){
-  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){showToast("Microphone recording isn't supported in this browser. You can type the transaction instead.");return;}
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    showToast("Live speech-to-text is not supported in this browser. Try Chrome, or type the transaction.");
+    return;
+  }
+  if(window.voiceKhataRecognition){
+    try{window.voiceKhataRecognition.stop();}catch{}
+    return;
+  }
   try{
-    recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    recordedChunks=[];
-    const preferred=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")?"audio/webm;codecs=opus":"";
-    mediaRecorder=new MediaRecorder(recordingStream,preferred?{mimeType:preferred}:{});
-    mediaRecorder.ondataavailable=event=>{if(event.data.size)recordedChunks.push(event.data);};
-    mediaRecorder.onstop=async()=>{
-      recordingStream?.getTracks().forEach(track=>track.stop());
-      $("recordButton").classList.remove("recording");$("recordStatus").textContent="PROCESSING AUDIO";$("recordHint").textContent="Sending audio for transcription…";
-      const blob=new Blob(recordedChunks,{type:mediaRecorder.mimeType||"audio/webm"});
-      const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");
-      const selectedLanguage=$("languageSelect").value;
-      form.append("language",selectedLanguage==="mixed"?"auto":selectedLanguage);
-      form.append("input_language",selectedLanguage);
-      try{
-        if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before using voice entry.");
-        const result=await authRequest("/voice/transcribe",{method:"POST",body:form});
-        const transcript=result.text||result.transcript||"";
-        if(!transcript.trim()) throw new Error("The speech service returned an empty transcript.");
-        $("transcriptInput").value=transcript;
-        $("recordHint").textContent="Transcription ready — check the words, then choose Understand transaction";
-        showToast("Audio transcribed. Now review the transaction details.");
-      }catch(error){
-        $("recordHint").textContent="Recording finished, but transcription API isn't connected yet.";
-        showToast("Audio was not transcribed. Connect the faster-whisper endpoint or type the transaction.");
-      }finally{$("recordStatus").textContent="READY WHEN YOU ARE";}
+    const recognition=new SpeechRecognition();
+    window.voiceKhataRecognition=recognition;
+    recognition.continuous=false;
+    recognition.interimResults=true;
+    const selectedLanguage=$("languageSelect").value;
+    recognition.lang=selectedLanguage==="hi"?"hi-IN":selectedLanguage==="bn"?"bn-IN":"en-IN";
+    const existing=$("transcriptInput").value.trim();
+    let finalText=existing?existing+" ":"";
+    recognition.onstart=()=>{
+      $("recordButton").classList.add("recording");
+      $("recordStatus").textContent="RECORDING NOW";
+      $("recordHint").textContent="Speak clearly. Click the microphone again to stop.";
+      $("recordButton").setAttribute("aria-label","Stop recording");
     };
-    mediaRecorder.start();$("recordButton").classList.add("recording");$("recordStatus").textContent="RECORDING NOW";$("recordHint").textContent="Tap the mic again when you're done";
-    $("recordButton").setAttribute("aria-label","Stop recording");$("recordButton").onclick=stopRecording;
-  }catch(error){showToast("Microphone permission was blocked. Allow access or type the transaction.");}
+    recognition.onresult=event=>{
+      let interim="";
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const phrase=event.results[i][0].transcript;
+        if(event.results[i].isFinal)finalText+=phrase+" ";
+        else interim+=phrase;
+      }
+      $("transcriptInput").value=(finalText+interim).trim();
+    };
+    recognition.onerror=event=>{
+      const messages={"not-allowed":"Microphone permission is blocked. Allow microphone access for this site.","service-not-allowed":"Browser speech recognition is blocked.","no-speech":"No speech detected. Tap the mic and speak after recording starts.","audio-capture":"No working microphone was found."};
+      showToast(messages[event.error]||("Speech recognition error: "+event.error));
+    };
+    recognition.onend=()=>{
+      window.voiceKhataRecognition=null;
+      $("recordButton").classList.remove("recording");
+      $("recordStatus").textContent="READY WHEN YOU ARE";
+      $("recordHint").textContent=$("transcriptInput").value.trim()?"Transcription ready — check the text, then choose Understand transaction.":"No text captured. Try again or type the transaction.";
+      $("recordButton").setAttribute("aria-label","Start recording");
+    };
+    recognition.start();
+  }catch(error){
+    window.voiceKhataRecognition=null;
+    showToast("Could not start speech recognition. Check microphone permission or type the transaction.");
+  }
 }
-function stopRecording(){if(mediaRecorder&&mediaRecorder.state!=="inactive"){mediaRecorder.stop();$("recordButton").setAttribute("aria-label","Start recording");$("recordButton").onclick=startRecording;}}
+function getShopProfile(){
+  try{return JSON.parse(localStorage.getItem("voicekhata.shop.profile")||"null");}catch{return null;}
+}
+function applyShopProfile(profile){
+  const shopLabel=$("shopNameLabel");
+  const ownerLabel=$("shopOwnerLabel");
+  const signedInName=$("signedInName");
+  const signedInNameTop=$("signedInNameTop");
+  const avatar=$("profileAvatar");
+  if(shopLabel)shopLabel.textContent=profile?.shopName||"Your shop";
+  if(ownerLabel)ownerLabel.textContent=profile?.ownerName||"Shop owner";
+  if(signedInName)signedInName.textContent=profile?.ownerName||"Shop owner";
+  if(signedInNameTop)signedInNameTop.textContent=profile?.shopName||"VoiceKhata";
+  if(avatar)avatar.textContent=initials(profile?.ownerName||profile?.shopName||"VK");
+}
+function loadShopProfile(){
+  let profile=getShopProfile();
+  const params=new URLSearchParams(location.search);
+  const ownerName=(params.get("ownerName")||profile?.ownerName||"").trim();
+  const shopName=(params.get("shopName")||profile?.shopName||"").trim();
+  if(ownerName&&shopName){
+    profile={ownerName,shopName};
+    try{localStorage.setItem("voicekhata.shop.profile",JSON.stringify(profile));}catch{}
+  }
+  applyShopProfile(profile);
+  $("getStarted").classList.toggle("hidden",!!(profile?.ownerName&&profile?.shopName));
+  document.querySelector(".app-shell").classList.toggle("hidden",!(profile?.ownerName&&profile?.shopName));
+  if(profile?.ownerName&&$("setupOwnerName"))$("setupOwnerName").value=profile.ownerName;
+  if(profile?.shopName&&$("setupShopName"))$("setupShopName").value=profile.shopName;
+}
+function finishSetup(event){
+  event.preventDefault();
+  const ownerName=$("setupOwnerName").value.trim();
+  const shopName=$("setupShopName").value.trim();
+  if(!ownerName||!shopName)return;
+  const profile={ownerName,shopName};
+  try{localStorage.setItem("voicekhata.shop.profile",JSON.stringify(profile));}
+  catch{showToast("Could not save your shop profile in this browser.");return;}
+  applyShopProfile(profile);
+  $("getStarted").classList.add("hidden");
+  document.querySelector(".app-shell").classList.remove("hidden");
+  navigate("dashboard");
+  showToast("Welcome to "+shopName+"!");
+}
+function logOutToSetup(){
+  try{localStorage.removeItem("voicekhata.shop.profile");}catch{}
+  $("accountMenu").classList.add("hidden");
+  $("setupForm").reset();
+  $("getStarted").classList.remove("hidden");
+  document.querySelector(".app-shell").classList.add("hidden");
+  applyShopProfile(null);
+}
 function setDates(){
   const now=new Date();
   $("todayLabel").textContent=now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
@@ -291,10 +384,14 @@ function setDates(){
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.view)));
 document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.go)));
+$("setupForm").addEventListener("submit",finishSetup);
+$("signOutButton").addEventListener("click",logOutToSetup);
 document.querySelectorAll("[data-manual-entry]").forEach(button=>button.addEventListener("click",openManualEntry));
 $("recordButton").addEventListener("click",startRecording);
 $("understandButton").addEventListener("click",understandTransaction);
 $("reviewForm").addEventListener("submit",saveTransaction);
+$("reviewAmount").addEventListener("input",updateLeftAmount);
+$("reviewPaidAmount").addEventListener("input",updateLeftAmount);
 $("ledgerSearch").addEventListener("input",renderTransactions);
 $("customerSearch").addEventListener("input",renderCustomers);
 $("chartRange").addEventListener("change",renderChart);
@@ -305,6 +402,13 @@ $("closeHelp").addEventListener("click",()=>$("helpModal").classList.add("hidden
 $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal"))$("helpModal").classList.add("hidden");});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
 setDates();
+loadShopProfile();
+$("profileButton").addEventListener("click",()=> $("accountMenu").classList.toggle("hidden"));
+if(!window.VoiceKhataAuth?.isSignedIn()){
+  try{transactions=JSON.parse(localStorage.getItem("voicekhata.demo.transactions.v1")||"[]");}catch{transactions=[];}
+  demoMode=true;
+}
+renderAll();
 renderAll();
 loadFromBackend();
 document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());

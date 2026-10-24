@@ -4,6 +4,14 @@
 
 ## Changes
 
+- 
+
+## How to test
+
+<!-- List the commands or manual steps you ran. -->
+
+- [ ] Relevant tests pass
+- [ ] I checked the UI manually, if applicable
 -
 
 ## How to test
@@ -16,6 +24,7 @@
 
 ## Screenshots or output
 
+<!-- Add screenshots, API responses, or test output when useful. -->
 <!-- Add screenshots, API responses, or test output where useful -->
 
 ## Checklist
