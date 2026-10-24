@@ -1,23 +1,8 @@
 /* VoiceKhata frontend. Authenticated requests use Google Identity Services. */
-// Set window.VOICEKHATA_API_BASE before this script when the API is hosted separately.
-const API_BASE = window.VOICEKHATA_API_BASE || (
-  ["localhost", "127.0.0.1"].includes(window.location.hostname)
-    ? "http://127.0.0.1:8000/api"
-    : window.location.origin.replace(/\/$/, "") + "/api"
-);
+const API_BASE = window.VOICEKHATA_API_BASE || "http://127.0.0.1:8000/api";
 const authRequest = (path, options={}) => {
   if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before accessing your ledger.");
   return window.VoiceKhataAuth.request(path, options);
-};
-const apiRequest = async (path, options={}) => {
-  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
-  const headers = {Accept:"application/json", ...(options.body instanceof FormData ? {} : {"Content-Type":"application/json"}), ...(options.headers||{})};
-  let response;
-  try { response = await fetch(API_BASE + path, {...options, headers}); }
-  catch { throw new Error("Cannot reach backend. Start FastAPI at http://127.0.0.1:8000."); }
-  const data = await response.json().catch(()=>({}));
-  if (!response.ok) throw new Error(data.detail || "Request failed (" + response.status + ")");
-  return data;
 };
 const DEMO_TRANSACTIONS = [
   {id:1,customer:"Ramesh Kumar",note:"2 kg basmati rice",kind:"credit_sale",amount:500,created_at:new Date(Date.now()-1000*60*24).toISOString()},
@@ -89,8 +74,8 @@ function updateMetrics(){
   const creditCount=$("creditCountToday");if(creditCount)creditCount.textContent=todayRows.filter(item=>item.kind==="credit_sale").length+" transactions";
   $("activeCustomers").textContent=String(balances.length);
   const title=document.querySelector("#view-dashboard .page-heading h1");
-  const user=getShopProfile();
-  if(title) title.innerHTML="Welcome"+(user?.ownerName ? ", "+esc(user.ownerName.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
+  const user=window.VoiceKhataAuth?.profile();
+  if(title) title.innerHTML="Welcome"+(user?.name ? ", "+esc(user.name.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
 }
 function renderChart(){
   const canvas=$("moneyChart");if(!canvas||!window.Chart)return;
@@ -124,16 +109,22 @@ function navigate(view){
   $("sidebar").classList.remove("open");
   window.scrollTo({top:0,behavior:"smooth"});
 }
+async function apiRequest(path,options={}){
+  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
+  const response=await fetch(API_BASE+path,{...options,headers:{"Accept":"application/json",...(options.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(options.headers||{})}});
+  if(!response.ok)throw new Error("API request failed ("+response.status+")");
+  return response.status===204?null:response.json();
+}
 function normalizeTransaction(raw){
   return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),product:raw.product??"",paid_amount:Number(raw.paid_amount??0),left_amount:Number(raw.left_amount??raw.amount??0),created_at:raw.created_at??new Date().toISOString()};
 }
 async function loadFromBackend(){
   if (!window.VoiceKhataAuth?.isSignedIn()) {
-    transactions = readLocalTransactions();
-    demoMode = true;
+    transactions=[];
+    demoMode=true;
     renderAll();
     const banner=$("modeBanner");
-    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Preview mode</strong> — entries are saved only in this browser for the demo. Sign in to use your private online ledger.</span>';
+    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Sign in required</strong> — use Google sign-in to load your private ledger. No sample transactions are shown.</span>';
     return;
   }
   try{
@@ -155,12 +146,10 @@ async function loadFromBackend(){
     }
     renderAll();
   }catch(error){
-    transactions = readLocalTransactions();
+    transactions=[];
     demoMode=true;
     renderAll();
-    const banner=$("modeBanner");
-    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Offline preview</strong> — the API could not be reached. Your browser-saved demo entries are shown.</span>';
-    showToast("Could not connect to the online ledger. Preview mode is still available.");
+    showToast(error.message || "Could not load your ledger.");
   }
 }
 function parseSimpleText(text){
@@ -178,6 +167,7 @@ function parseSimpleText(text){
 async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
+  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
   if(!text){showToast("Type a transaction first.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Preparing draft…";
@@ -185,28 +175,13 @@ async function understandTransaction(){
   const selectedLanguage=$("languageSelect").value;
   const language=selectedLanguage==="mixed"?"auto":selectedLanguage;
   try{
-    if(window.VoiceKhataAuth?.isSignedIn()){
-      parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language,input_language:selectedLanguage})});
-    } else {
-      parsed=parseSimpleText(text);
-    }
-    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("I could not identify both a customer and an amount. Edit the sentence and try again.");
-    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) parsed=parseSimpleText(text);
-    if(!parsed.customer || !(Number(parsed.amount)>0)) throw new Error("I couldn't find both a customer name and a positive amount. Please enter the details manually below.");
+    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before creating a transaction.");
+    parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language:$("languageSelect").value})});
     parsed=normalizeTransaction(parsed);
   }catch(error){
     parsed=parseSimpleText(text);
-    if(!parsed.customer || !(Number(parsed.amount)>0)){
-      showToast((error.message||"Could not understand this transaction.")+" You can still enter the fields manually.");
-      $("reviewCustomer").value="";
-      $("reviewKind").value="credit_sale";
-      $("reviewAmount").value="";
-      $("reviewNote").value=text;
-      $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
-      $("reviewMessage").textContent="Please check or enter the transaction details manually.";
-      return;
-    }
-  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Prepare draft <span>→</span>';}
+    showToast((window.VoiceKhataAuth?.isSignedIn() ? error.message : "Sign in with Google to save a transaction.") + " Carefully review the draft.");
+  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
   $("reviewProduct").value=parsed.product||parsed.item||"";
@@ -237,32 +212,14 @@ async function saveTransaction(event){
   const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:due,product:$("reviewProduct").value.trim(),paid_amount:paid,left_amount:left,note:$("reviewNote").value.trim()};
   if(!item.customer||!Number.isFinite(due)||due<=0||!Number.isFinite(paid)||paid<0||paid>due){showToast("Check customer and amounts. Paid now cannot exceed due amount.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
+  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before saving a transaction.");return;}
   const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
-    if (window.VoiceKhataAuth?.isSignedIn()) {
-  const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
-  if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and enter an amount greater than zero.");return;}
-  if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
-  const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
-  try{
-    if(window.VoiceKhataAuth?.isSignedIn()){
-      const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
-      transactions.unshift(normalizeTransaction(saved));
-      demoMode=false;
-      showToast("Transaction saved to your private ledger.");
-    } else {
-      const saved={...item,id:Date.now(),created_at:new Date().toISOString()};
-      transactions.unshift(saved);
-      localStorage.setItem("voicekhata.demo.transactions.v1",JSON.stringify(transactions));
-      demoMode=true;
-      showToast("Demo transaction saved in this browser only.");
-      transactions.unshift({...item,id:Date.now(),created_at:new Date().toISOString()});
-      demoMode=true;
-      if(!saveLocalTransactions()){transactions.shift();button.disabled=false;return;}
-      const banner=$("modeBanner");
-      if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Preview mode</strong> — this entry is saved locally in this browser, not to an online account.</span>';
-      showToast("Transaction saved in this browser for the demo.");
-    }
+    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before saving a transaction.");
+    const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
+    transactions.unshift(normalizeTransaction(saved));
+    demoMode=false;
+    showToast("Transaction saved to your private ledger.");
   }catch(error){
     button.disabled=false;
     showToast(error.message || "Could not save. Check your connection and try again.");
@@ -273,41 +230,28 @@ async function saveTransaction(event){
   renderAll();navigate("ledger");
 }
 async function startRecording(){
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (window.voiceKhataRecognition) {
-    try { window.voiceKhataRecognition.stop(); } catch {}
-    return;
-  }
-
-  if (!SpeechRecognition) {
-    $("recordStatus").textContent = "BROWSER NOT SUPPORTED";
-    $("recordHint").textContent = "Live voice typing needs a current version of Google Chrome. You can still type the transaction below.";
-    showToast("Live speech-to-text is not available in this browser. Open VoiceKhata in current Google Chrome or type the transaction.");
-    return;
-  }
-
-  try {
-    const recognition = new SpeechRecognition();
-    window.voiceKhataRecognition = recognition;
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    const selectedLanguage = $("languageSelect").value;
-    const languageMap = { en: "en-IN", hi: "hi-IN", bn: "bn-IN", mixed: "en-IN", auto: "en-IN" };
-    recognition.lang = languageMap[selectedLanguage] || "en-IN";
-
-    const existingText = $("transcriptInput").value.trim();
-    let finalText = existingText ? existingText + " " : "";
-    let interimText = "";
-    let recognitionError = "";
-
-    recognition.onstart = () => {
-      $("recordButton").classList.add("recording");
-      $("recordStatus").textContent = "RECORDING NOW";
-      $("recordHint").textContent = "Speak now. Your recognized words will appear in the transaction box below. Tap the mic to stop.";
-      $("recordButton").setAttribute("aria-label", "Stop recording");
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){showToast("Microphone recording isn't supported in this browser. You can type the transaction instead.");return;}
+  try{
+    recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recordedChunks=[];
+    const preferred=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")?"audio/webm;codecs=opus":"";
+    mediaRecorder=new MediaRecorder(recordingStream,preferred?{mimeType:preferred}:{});
+    mediaRecorder.ondataavailable=event=>{if(event.data.size)recordedChunks.push(event.data);};
+    mediaRecorder.onstop=async()=>{
+      recordingStream?.getTracks().forEach(track=>track.stop());
+      $("recordButton").classList.remove("recording");$("recordStatus").textContent="PROCESSING AUDIO";$("recordHint").textContent="Sending audio for transcription…";
+      const blob=new Blob(recordedChunks,{type:mediaRecorder.mimeType||"audio/webm"});
+      const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");form.append("language",$("languageSelect").value);
+      try{
+        if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before using voice entry.");
+        const result=await authRequest("/voice/transcribe",{method:"POST",body:form});
+        $("transcriptInput").value=result.text||result.transcript||"";
+        $("recordHint").textContent="Transcription ready — review the text below";
+        showToast("Audio transcribed. Now review the transaction details.");
+      }catch(error){
+        $("recordHint").textContent="Recording finished, but transcription API isn't connected yet.";
+        showToast("Audio was not transcribed. Connect the faster-whisper endpoint or type the transaction.");
+      }finally{$("recordStatus").textContent="READY WHEN YOU ARE";}
     };
 
     recognition.onresult = event => {
@@ -441,16 +385,9 @@ $("closeHelp").addEventListener("click",()=>$("helpModal").classList.add("hidden
 $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal"))$("helpModal").classList.add("hidden");});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
 setDates();
-loadShopProfile();
-$("profileButton").addEventListener("click",()=> $("accountMenu").classList.toggle("hidden"));
-if(!window.VoiceKhataAuth?.isSignedIn()){
-  try{transactions=JSON.parse(localStorage.getItem("voicekhata.demo.transactions.v1")||"[]");}catch{transactions=[];}
-  demoMode=true;
-}
+if(!window.VoiceKhataAuth?.isSignedIn()){transactions=[];demoMode=true;}
 renderAll();
-renderAll();
-loadFromBackend();
 document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());
-document.addEventListener("voicekhata:signed-out",()=>{transactions=readLocalTransactions();demoMode=true;renderAll();loadFromBackend();});
+document.addEventListener("voicekhata:signed-out",()=>{transactions=[];demoMode=true;renderAll();});
 document.addEventListener("voicekhata:auth-required",()=>{transactions=[];demoMode=true;renderAll();showToast("Your session needs Google sign-in again.");});
 window.VoiceKhata={loadFromBackend,renderAll};

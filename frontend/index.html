@@ -9,7 +9,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="auth.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -46,8 +48,8 @@
       </nav>
       <div class="sidebar-bottom">
         <div class="help-card"><span class="help-icon">✦</span><strong>Your digital khata</strong><p>Speak naturally. Review the details. Save with confidence.</p><button id="helpButton" class="text-button">How it works <span>↗</span></button></div>
-        <div class="profile-row" id="accountProfile"><span class="profile-avatar" id="profileAvatar">VK</span><span><strong id="signedInName">Shop owner</strong><small>Shop profile</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
-        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Log out</button></div>
+        <div class="profile-row" id="accountProfile"><span class="profile-avatar">VK</span><span><strong id="signedInName">Not signed in</strong><small>Google account</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
+        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Sign out</button></div>
       </div>
     </aside>
 
@@ -55,10 +57,10 @@
       <header class="topbar">
         <button id="menuButton" class="icon-button mobile-menu" aria-label="Open menu">☰</button>
         <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumbCurrent">Overview</strong></div>
-        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="signed-in-identity"><span id="signedInNameTop"></span></div></div>
+        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="google-auth-wrap"><div id="googleSignIn" aria-label="Sign in with Google"></div><div id="signedInIdentity" class="signed-in-identity hidden"><img id="signedInImage" class="signed-in-image hidden" alt=""><span id="signedInNameTop"></span></div><p id="authMessage" class="auth-message" role="status"></p></div></div>
       </header>
 
-      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Browser demo</strong> — your entries are saved in this browser.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
+      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Preview mode</strong> — sign in with Google to access your private ledger. Sample data is not saved.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
 
       <section class="view active-view" id="view-dashboard">
         <div class="page-heading">
