@@ -21,7 +21,7 @@ FRONTEND_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "VOICEKHATA_CORS_ORIGINS",
-        "http://localhost:5500,http://127.0.0.1:5500",
+        "https://nishantekka2007-sys.github.io,http://localhost:5500,http://127.0.0.1:5500",
     ).split(",")
     if origin.strip()
 ]
@@ -31,7 +31,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
