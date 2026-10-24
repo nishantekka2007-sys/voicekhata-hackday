@@ -520,7 +520,37 @@ body{font-family:"DM Sans",sans-serif;background:#f5f8f6;color:#182c26}
 @media(max-width:800px){.sidebar{width:252px}.content{padding:17px}.topbar{height:64px;padding:0 17px}.page-head{min-height:150px;padding:23px!important}.metric-grid{gap:11px}}
 @media(max-width:520px){.content{padding:12px}.page-head{min-height:132px;padding:18px!important;border-radius:16px!important}.page-head h1{font-size:28px}.metric-card{padding:14px;border-radius:13px!important}.metric-value{font-size:22px}.panel,.voice-card,.review-card{padding:15px}.topbar{padding:0 12px}}
 
-  </style>
+  
+/* Reference-inspired full product layout for New Entry */
+#view-voice .page-head{min-height:200px!important;border-radius:18px!important;padding:29px 30px!important;margin-bottom:12px!important;background:linear-gradient(90deg,rgba(7,39,29,.93) 0%,rgba(7,39,29,.78) 39%,rgba(7,39,29,.08) 100%),url('https://images.unsplash.com/photo-1604719312566-8912e9c8a9e7?auto=format&fit=crop&w=1500&q=90') center 48%/cover no-repeat!important;color:#fff!important}
+#view-voice .page-head h1{font-size:clamp(34px,3vw,46px)!important;color:#fff!important;letter-spacing:-1.8px!important}
+#view-voice .page-head h1:after{content:"";display:block}
+#view-voice .page-head .eyebrow{color:#9cf3be!important}
+#view-voice .page-head p:not(.eyebrow){color:#f4fff7!important;max-width:540px}
+#view-voice .page-head:after{content:"Fast  ·  Multi-language  ·  Review before saving";display:inline-block;margin-top:17px;padding:9px 13px;border:1px solid #ffffff50;border-radius:10px;background:#ffffffea;color:#174333;font-size:11px;font-weight:800;letter-spacing:.1px;box-shadow:0 6px 20px #0002}
+.vk-entry-layout{display:grid;grid-template-columns:minmax(0,1fr) 286px;gap:16px;align-items:start}.vk-entry-main{min-width:0}.vk-entry-rail{display:grid;gap:14px;min-width:0}
+.vk-rail-card{padding:16px;background:#fff;border:1px solid #e3ece6;border-radius:16px;box-shadow:0 6px 22px #183d2b0b}
+.vk-rail-title{display:flex;align-items:center;gap:8px;margin-bottom:13px}.vk-rail-title strong{font-size:14px;letter-spacing:-.35px;color:#172c26;flex:1}.vk-rail-title button{font-size:10px;color:#2463e8;white-space:nowrap}
+.vk-sun{color:#ffb321;font-size:22px}.vk-quickbolt{color:#ffb321;font-size:24px}
+.vk-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.vk-mini-stat{min-width:0;padding:11px 10px;border:1px solid transparent;border-radius:12px;display:flex;flex-direction:column;gap:4px}
+.vk-mini-stat strong{font-size:17px;letter-spacing:-.5px;color:#182b25;margin-top:4px;overflow-wrap:anywhere}.vk-mini-stat small{font-size:10px;color:#233c32}.vk-mini-stat em{font-style:normal;font-size:9px;color:#71827a;line-height:1.4}
+.vk-stat-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;font-size:18px;font-weight:800}
+.stat-green{background:#effaf4;border-color:#d5f1e1}.stat-green .vk-stat-icon{background:#bfeeda;color:#087c53}.stat-pink{background:#fff2f4;border-color:#ffe0e5}.stat-pink .vk-stat-icon{background:#ffd5df;color:#dc3555}.stat-amber{background:#fff7e7;border-color:#f9e9c7}.stat-amber .vk-stat-icon{background:#ffebba;color:#b7790b}.stat-blue{background:#f0f5ff;border-color:#dce7ff}.stat-blue .vk-stat-icon{background:#d7e4ff;color:#3266de}
+.vk-quick-row{width:100%;display:flex;align-items:center;gap:10px;padding:9px 0;text-align:left;border-top:1px solid #edf1ee;font-size:11px;color:#263b32}.vk-quick-row b{margin-left:auto;color:#627b70;font-size:20px;font-weight:400}.vk-quick-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;font-size:17px;font-weight:800}.q-blue{background:#eaf0ff;color:#365fe3}.q-amber{background:#fff2d3;color:#bd7a00}.q-green{background:#ddf8e9;color:#098454}.q-orange{background:#ffede4;color:#df7041}.vk-quick-row:hover{color:#087f5b}
+.vk-recent-list{display:grid;gap:8px}.vk-recent-item{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid #edf1ee}.vk-recent-avatar{width:34px;height:34px;border-radius:11px;background:#f1e4fa;color:#8b43a8;display:grid;place-items:center;font-weight:800;flex:none}.vk-recent-copy{min-width:0;flex:1}.vk-recent-copy strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vk-recent-copy small{font-size:10px;color:#71817b}.vk-recent-copy em{font-style:normal;color:#db4054;font-weight:800}.vk-rail-empty{font-size:11px;line-height:1.6;color:#7d8c84}
+.vk-tip-card{display:flex;gap:10px;padding:16px;background:linear-gradient(130deg,#effaf4,#e7f8f0);border:1px solid #d8efe1;border-radius:16px}.vk-tip-card>span{font-size:24px}.vk-tip-card strong{font-size:13px}.vk-tip-card p{font-size:10px;line-height:1.6;color:#50685c;margin-top:4px}
+#view-voice .vk-entry-main>.panel{border-radius:17px!important;background:linear-gradient(130deg,#fff 0%,#f9fffb 100%)!important;border-color:#dceee4!important}
+#view-voice .voice-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:13px}
+#view-voice .voice-card,#view-voice .review-card{padding:18px;border-radius:16px!important}
+#view-voice .voice-card h2,#view-voice .review-card h2{font-size:19px}
+#view-voice .mic-btn{width:94px;height:94px}
+#view-voice .btn-parse{background:linear-gradient(100deg,#d6f8e4,#bdf2d5)!important;color:#076640!important;box-shadow:none!important}
+@media(max-width:1320px){.vk-entry-layout{grid-template-columns:minmax(0,1fr) 250px;gap:12px}.vk-rail-card{padding:13px}.vk-mini-stat{padding:9px}.vk-mini-stat strong{font-size:15px}}
+@media(max-width:1050px){.vk-entry-layout{grid-template-columns:minmax(0,1fr)}.vk-entry-rail{grid-template-columns:repeat(2,minmax(0,1fr))}.vk-summary-card{grid-column:1/-1}.vk-summary-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:650px){.vk-entry-rail{grid-template-columns:1fr}.vk-summary-card{grid-column:auto}.vk-summary-grid{grid-template-columns:1fr 1fr}#view-voice .page-head{min-height:175px!important;padding:20px!important}#view-voice .voice-layout{grid-template-columns:1fr}.vk-entry-layout{gap:12px}}
+
+</style>
 </head>
 <body>
 
@@ -665,6 +695,7 @@ body{font-family:"DM Sans",sans-serif;background:#f5f8f6;color:#182c26}
         <div class="page-head">
           <div><p class="eyebrow">ADD A RECORD</p><h1>New Entry</h1><p style="color:var(--muted);font-size:12px;margin-top:6px">Record a sale, collect a payment, or add a shop expense.</p></div>
         </div>
+        <div class="vk-entry-layout"><div class="vk-entry-main">
         <div class="panel" style="margin-bottom:18px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <div><h2 style="font-size:16px">Manual Entry</h2><p style="color:var(--muted);font-size:12px;margin-top:4px">Use this form when voice recognition is inaccurate. The microphone option remains available below.</p></div>
@@ -783,7 +814,33 @@ body{font-family:"DM Sans",sans-serif;background:#f5f8f6;color:#182c26}
               <span class="sf-icon">✅</span>
               <strong>Transaction saved!</strong>
               <p id="successDetail"></p>
-              <button class="btn-primary" style="width:auto;padding:10px 22px" onclick="recordAnother()">Record Another</button>
+              <button class="btn-primary" style="width:auto;padding:10px 22px" onclick="recordAnother()">Record Ano
+        </div>
+        <aside class="vk-entry-rail" aria-label="Shop summary and shortcuts">
+          <section class="vk-rail-card vk-summary-card">
+            <div class="vk-rail-title"><span class="vk-sun">☀</span><strong>Today's Summary</strong><button type="button" onclick="navigate('dashboard')">View all →</button></div>
+            <div class="vk-summary-grid">
+              <div class="vk-mini-stat stat-green"><span class="vk-stat-icon">↓</span><strong id="vkRailCollected">₹0</strong><small>Collected Today</small><em id="vkRailPayments">0 transactions</em></div>
+              <div class="vk-mini-stat stat-pink"><span class="vk-stat-icon">↑</span><strong id="vkRailCredit">₹0</strong><small>Credit Given</small><em id="vkRailCredits">0 transactions</em></div>
+              <div class="vk-mini-stat stat-amber"><span class="vk-stat-icon">▤</span><strong id="vkRailDue">₹0</strong><small>Total Due (Udhaar)</small><em>Across customers</em></div>
+              <div class="vk-mini-stat stat-blue"><span class="vk-stat-icon">♙</span><strong id="vkRailCustomers">0</strong><small>Total Customers</small><em>Customer accounts</em></div>
+            </div>
+          </section>
+          <section class="vk-rail-card">
+            <div class="vk-rail-title"><span class="vk-quickbolt">ϟ</span><strong>Quick Actions</strong></div>
+            <button class="vk-quick-row" onclick="navigate('ledger')"><span class="vk-quick-icon q-blue">▤</span>View Khata Ledger <b>›</b></button>
+            <button class="vk-quick-row" onclick="navigate('due-payments')"><span class="vk-quick-icon q-amber">₹</span>Open Due Payments <b>›</b></button>
+            <button class="vk-quick-row" onclick="navigate('customers')"><span class="vk-quick-icon q-green">♙</span>Manage Customers <b>›</b></button>
+            <button class="vk-quick-row" onclick="document.getElementById('manualKind').value='cash_expense';document.getElementById('manualKind').dispatchEvent(new Event('change'));document.getElementById('manualAmount').focus()"><span class="vk-quick-icon q-orange">▧</span>Add Shop Expense <b>›</b></button>
+          </section>
+          <section class="vk-rail-card">
+            <div class="vk-rail-title"><strong>Recent Customers</strong><button type="button" onclick="navigate('customers')">View all →</button></div>
+            <div id="vkRailRecent" class="vk-recent-list"><p class="vk-rail-empty">Your customer activity will appear here.</p></div>
+          </section>
+          <section class="vk-tip-card"><span>💡</span><div><strong>Tip</strong><p>Use manual or voice entry. Always review the customer and amount before saving.</p></div></section>
+        </aside>
+        </div>
+ther</button>
             </div>
           </div>
         </div>
@@ -1702,5 +1759,41 @@ function recordAnother() {
 <script src="cloud.js"></script>
 <script src="portal.js"></script>
 <script type="module" src="whisper-stt.js"></script>
+
+<script>
+(function(){
+  function vkMoney(value){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(value)||0);}
+  function vkUpdateRail(){
+    try{
+      const tx=Array.isArray(transactions)?transactions:[];
+      const now=new Date(); const today=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+      const day=tx.filter(t=>String(t.created_at||"").slice(0,10)===today);
+      const collected=day.filter(t=>t.kind==="payment_received");
+      const credit=day.filter(t=>t.kind==="credit_sale");
+      const summaries=typeof customerSummaries==="function"?customerSummaries():[];
+      const due=summaries.reduce((s,x)=>s+Math.max(0,Number(x.balance)||0),0);
+      const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+      set("vkRailCollected",vkMoney(collected.reduce((s,t)=>s+(Number(t.amount)||0),0)));
+      set("vkRailPayments",collected.length+" transaction"+(collected.length===1?"":"s"));
+      set("vkRailCredit",vkMoney(credit.reduce((s,t)=>s+(Number(t.amount)||0),0)));
+      set("vkRailCredits",credit.length+" transaction"+(credit.length===1?"":"s"));
+      set("vkRailDue",vkMoney(due));set("vkRailCustomers",String(summaries.length));
+      const list=document.getElementById("vkRailRecent");
+      if(list){
+        const recent=summaries.slice().sort((a,b)=>(Number(b.balance)||0)-(Number(a.balance)||0)).slice(0,3);
+        list.innerHTML=recent.length?recent.map(x=>'<div class="vk-recent-item"><span class="vk-recent-avatar">'+String(x.customer||"?").trim().charAt(0).toUpperCase()+'</span><span class="vk-recent-copy"><strong>'+String(x.customer||"Customer").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]))+'</strong><small>'+(x.customer_code||"Customer account")+'</small></span><span class="vk-recent-copy"><em>'+vkMoney(x.balance)+'</em></span></div>').join(""):'<p class="vk-rail-empty">Add your first customer to see their account summary here.</p>';
+      }
+    }catch(e){console.warn("Summary panel refresh skipped",e);}
+  }
+  const oldRenderDashboard=window.renderDashboard;
+  if(typeof oldRenderDashboard==="function")window.renderDashboard=function(){const r=oldRenderDashboard.apply(this,arguments);vkUpdateRail();return r;};
+  const oldRenderCustomers=window.renderCustomers;
+  if(typeof oldRenderCustomers==="function")window.renderCustomers=function(){const r=oldRenderCustomers.apply(this,arguments);vkUpdateRail();return r;};
+  document.addEventListener("DOMContentLoaded",vkUpdateRail);
+  window.addEventListener("load",vkUpdateRail);
+  setTimeout(vkUpdateRail,700);
+})();
+</script>
+
 </body>
 </html>
