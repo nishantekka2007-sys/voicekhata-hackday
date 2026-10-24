@@ -23,6 +23,18 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Check inline JavaScript syntax
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const html = fs.readFileSync("frontend/index.html", "utf8");
+          const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)]
+            .map((match) => match[1].trim())
+            .filter(Boolean);
+          if (!scripts.length) throw new Error("No inline JavaScript found in frontend/index.html");
+          fs.writeFileSync("/tmp/voicekhata-inline.js", scripts.join("\\n;\\n"));
+          NODE
+          node --check /tmp/voicekhata-inline.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
