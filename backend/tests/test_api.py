@@ -28,6 +28,13 @@ def test_ledger_requires_login():
         assert client.get("/api/transactions").status_code == 401
 
 
+def test_delete_transaction_requires_login():
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    with TestClient(app) as client:
+        assert client.delete("/api/transactions/1").status_code == 401
+
+
 def test_google_login_fails_closed_without_client_id(monkeypatch):
     from fastapi.testclient import TestClient
     import backend.main as main
