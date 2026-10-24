@@ -37,7 +37,7 @@ For a credit sale, the remaining amount is calculated as **due amount − paid a
 
 ## Repository layout
 
-\`\`\`text
+```text
 voicekhata-hackday/
 ├── backend/
 │   ├── main.py              # FastAPI routes, auth, SQLite, voice transcription
@@ -58,7 +58,7 @@ voicekhata-hackday/
 ├── .gitignore
 ├── LICENSE
 └── README.md
-\`\`\`
+```
 
 The root-level prototype modules are retained for reference. The current web API entry point is backend/main.py.
 
@@ -75,33 +75,33 @@ Install:
 
 On macOS, install FFmpeg with Homebrew if needed:
 
-\`\`\`bash
+```bash
 brew install ffmpeg
-\`\`\`
+```
 
 ### 2. Clone the repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/nishantekka2007-sys/voicekhata-hackday.git
 cd voicekhata-hackday
-\`\`\`
+```
 
 To use the current Gemma voice-entry work before it is merged into main:
 
-\`\`\`bash
+```bash
 git switch feat/gemma4-voice-entry
-\`\`\`
+```
 
 ### 3. Create a virtual environment and install dependencies
 
 Run these commands from the repository root:
 
-\`\`\`bash
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r backend/requirements.txt
-\`\`\`
+```
 
 ### 4. Configure Google sign-in
 
@@ -112,10 +112,10 @@ Google sign-in is optional for starting the server, but authenticated ledger end
 3. Add http://localhost:5500 and http://127.0.0.1:5500 as authorized JavaScript origins for local development.
 4. Set the client ID in your terminal:
 
-\`\`\`bash
+```bash
 export GOOGLE_CLIENT_ID="YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com"
 export VOICEKHATA_CORS_ORIGINS="http://localhost:5500,http://127.0.0.1:5500"
-\`\`\`
+```
 
 Do not commit real credentials or put secrets in frontend code. The application verifies Google ID tokens; it should never ask users for their Google password.
 
@@ -123,25 +123,25 @@ Do not commit real credentials or put secrets in frontend code. The application 
 
 From the repository root, with the virtual environment activated:
 
-\`\`\`bash
+```bash
 uvicorn main:app --reload --app-dir backend --host 127.0.0.1 --port 8000
-\`\`\`
+```
 
 Keep this terminal open. Verify the API health endpoint at http://127.0.0.1:8000/api/health and open the interactive API docs at http://127.0.0.1:8000/docs.
 
 If port 8000 is already in use, check the process before stopping it:
 
-\`\`\`bash
+```bash
 lsof -nP -iTCP:8000 -sTCP:LISTEN
-\`\`\`
+```
 
 ### 6. Start the frontend
 
 Open a second terminal in the repository root:
 
-\`\`\`bash
+```bash
 python3 -m http.server 5500 --directory frontend
-\`\`\`
+```
 
 Then open http://localhost:5500 in your browser.
 
@@ -151,9 +151,9 @@ The first transcription request may take time because the configured model and m
 
 The voice endpoint is:
 
-\`\`\`text
+```text
 POST /api/voice/transcribe
-\`\`\`
+```
 
 It accepts an audio file and an optional language field. It returns recognized text and does **not** save a transaction. Always check the transcript and transaction fields before saving.
 
@@ -185,15 +185,15 @@ See the automatically generated API docs at http://127.0.0.1:8000/docs while the
 
 With the virtual environment activated:
 
-\`\`\`bash
+```bash
 pytest -q backend/tests
-\`\`\`
+```
 
 The repository also contains prototype tests at the root:
 
-\`\`\`bash
+```bash
 python -m pytest -q test_ledger.py test_gemma_ai.py
-\`\`\`
+```
 
 Run the tests relevant to the code you change and include the results in your pull request. Tests passing does not by itself verify live Google OAuth or model transcription.
 
