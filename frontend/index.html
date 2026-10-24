@@ -9,13 +9,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="auth.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="app-shell">
+  <section id="getStarted" class="get-started">
+    <div class="onboarding-card">
+      <a class="brand onboarding-brand" href="#" aria-label="VoiceKhata home"><span class="brand-mark">vk</span><span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span></a>
+      <p class="eyebrow">A SIMPLE DIGITAL KHATA</p>
+      <h1>Let’s set up your shop.</h1>
+      <p class="onboarding-copy">Start with your name and shop name. Your dashboard will be ready in a moment.</p>
+      <form id="setupForm" class="setup-form">
+        <label class="field-label" for="setupOwnerName">Your name</label>
+        <input id="setupOwnerName" name="ownerName" autocomplete="name" required maxlength="80" placeholder="e.g. Nishant Ekka">
+        <label class="field-label" for="setupShopName">Shop name</label>
+        <input id="setupShopName" name="shopName" required maxlength="100" placeholder="e.g. Ekka General Store">
+        <button class="primary-button full-button" type="submit">Get started <span>→</span></button>
+      </form>
+      <p class="onboarding-footnote">This demo keeps your shop profile and entries in this browser. No Google sign-in is needed for this setup.</p>
+    </div>
+  </section>
+  <div class="app-shell hidden">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#" aria-label="VoiceKhata home">
         <span class="brand-mark" aria-hidden="true">vk</span>
@@ -31,8 +45,8 @@
       </nav>
       <div class="sidebar-bottom">
         <div class="help-card"><span class="help-icon">✦</span><strong>Your digital khata</strong><p>Speak naturally. Review the details. Save with confidence.</p><button id="helpButton" class="text-button">How it works <span>↗</span></button></div>
-        <div class="profile-row" id="accountProfile"><span class="profile-avatar">VK</span><span><strong id="signedInName">Not signed in</strong><small>Google account</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
-        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Sign out</button></div>
+        <div class="profile-row" id="accountProfile"><span class="profile-avatar" id="profileAvatar">VK</span><span><strong id="signedInName">Shop owner</strong><small>Shop profile</small></span><button class="more-button" id="profileButton" aria-label="Profile options">···</button></div>
+        <div id="accountMenu" class="account-menu hidden"><button id="signOutButton" type="button">Log out</button></div>
       </div>
     </aside>
 
@@ -40,10 +54,10 @@
       <header class="topbar">
         <button id="menuButton" class="icon-button mobile-menu" aria-label="Open menu">☰</button>
         <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumbCurrent">Overview</strong></div>
-        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="google-auth-wrap"><div id="googleSignIn" aria-label="Sign in with Google"></div><div id="signedInIdentity" class="signed-in-identity hidden"><img id="signedInImage" class="signed-in-image hidden" alt=""><span id="signedInNameTop"></span></div><p id="authMessage" class="auth-message" role="status"></p></div></div>
+        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><div class="signed-in-identity"><span id="signedInNameTop"></span></div></div>
       </header>
 
-      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Preview mode</strong> — sign in with Google to access your private ledger. Sample data is not saved.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
+      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Browser demo</strong> — your entries are saved in this browser.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
 
       <section class="view active-view" id="view-dashboard">
         <div class="page-heading">
