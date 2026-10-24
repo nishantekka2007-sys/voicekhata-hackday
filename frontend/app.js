@@ -141,13 +141,13 @@ async function loadFromBackend(){
   }
 }
 function parseSimpleText(text){
-  const amountMatch=text.match(/(?:₹|rs\.?\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?:\s*(?:rupees?|rs\.?))?/i);
+  const amountMatch=text.match(/(?:₹|rs\.?\s*)?([0-9]+(?:,[0-9]{3})*(?:\.[0-9]{1,2})?)(?:\s*(?:rupees?|rs\.?|rupaye|rupya|रुपये|रुपया))?/i);
   const amount=amountMatch?Number(amountMatch[1].replace(/,/g,"")):0;
   const lower=text.toLowerCase();
-  const kind=/\b(paid|payment|gave me|repaid|returned|collected)\b/.test(lower)?"payment_received":/\b(expense|electricity bill|rent|bought for shop)\b/.test(lower)?"cash_expense":"credit_sale";
+  const kind=/\b(paid|payment|gave me|repaid|returned|collected|jama kiya|paise mile|wapas kiya)\b/.test(lower)?"payment_received":/\b(expense|electricity bill|rent|bought for shop|kharcha|dukaan ke liye kharida)\b/.test(lower)?"cash_expense":"credit_sale";
   let customer=text.trim();
   if(amountMatch)customer=customer.replace(amountMatch[0]," ");
-  customer=customer.replace(/\b(on credit|as credit|credit|worth of|worth|rupees?|rs\.?|paid|payment|gave me|repaid|returned|collected|took|bought|for|to|from|the|me|and)\b/gi," ").replace(/[₹,:]/g," ").replace(/\s+/g," ").trim();
+  customer=customer.replace(/\b(on credit|as credit|credit|worth of|worth|rupees?|rupaye|rupya|rs\.?|paid|payment|gave me|repaid|returned|collected|took|bought|for|to|from|the|me|and|ko|ka|ki|ke|udhaar|diya|diye|liya|liye|jama|kiya|kharcha)\b/gi," ").replace(/[₹,:]/g," ").replace(/\s+/g," ").trim();
   const words=customer.split(" ").filter(Boolean);
   const name=words.slice(0,2).join(" ").replace(/\b\w/g,c=>c.toUpperCase());
   return {customer:name,kind,amount,note:text.trim()};
@@ -155,14 +155,17 @@ function parseSimpleText(text){
 async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
-  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
   let parsed;
   const selectedLanguage=$("languageSelect").value;
   const language=selectedLanguage==="mixed"?"auto":selectedLanguage;
   try{
-    parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language,input_language:selectedLanguage})});
-    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("AI did not return a clear customer and positive amount. Please edit your words and try again.");
+    if(window.VoiceKhataAuth?.isSignedIn()){
+      parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language,input_language:selectedLanguage})});
+    } else {
+      parsed=parseSimpleText(text);
+    }
+    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("I could not identify both a customer and an amount. Edit the sentence and try again.");
     parsed=normalizeTransaction(parsed);
   }catch(error){
     showToast((error.message||"Could not understand this transaction.")+" Nothing was saved. Check the backend connection or edit the transcript.");
@@ -180,14 +183,20 @@ async function saveTransaction(event){
   const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
   if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and amount.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
-  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before saving a transaction.");return;}
   const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
-    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before saving a transaction.");
-    const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
-    transactions.unshift(normalizeTransaction(saved));
-    demoMode=false;
-    showToast("Transaction saved to your private ledger.");
+    if (window.VoiceKhataAuth?.isSignedIn()) {
+      const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
+      transactions.unshift(normalizeTransaction(saved));
+      demoMode=false;
+      showToast("Transaction saved to your private ledger.");
+    } else {
+      const saved={...item,id:Date.now(),created_at:new Date().toISOString()};
+      transactions.unshift(saved);
+      localStorage.setItem("voicekhata.demo.transactions.v1",JSON.stringify(transactions));
+      demoMode=true;
+      showToast("Demo transaction saved in this browser only.");
+    }
   }catch(error){
     button.disabled=false;
     showToast(error.message || "Could not save. Check your connection and try again.");
@@ -214,16 +223,15 @@ async function startRecording(){
       form.append("language",selectedLanguage==="mixed"?"auto":selectedLanguage);
       form.append("input_language",selectedLanguage);
       try{
-        if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before using voice entry.");
-        const result=await authRequest("/voice/transcribe",{method:"POST",body:form});
+        const result=await apiRequest("/voice/transcribe",{method:"POST",body:form});
         const transcript=result.text||result.transcript||"";
         if(!transcript.trim()) throw new Error("The speech service returned an empty transcript.");
         $("transcriptInput").value=transcript;
         $("recordHint").textContent="Transcription ready — check the words, then choose Understand transaction";
         showToast("Audio transcribed. Now review the transaction details.");
       }catch(error){
-        $("recordHint").textContent="Recording finished, but transcription API isn't connected yet.";
-        showToast("Audio was not transcribed. Connect the faster-whisper endpoint or type the transaction.");
+        $("recordHint").textContent="Transcription failed. Check the backend and Gemma 4 setup.";
+        showToast(error.message||"Audio was not transcribed. Check the backend and Gemma 4 setup.");
       }finally{$("recordStatus").textContent="READY WHEN YOU ARE";}
     };
     mediaRecorder.start();$("recordButton").classList.add("recording");$("recordStatus").textContent="RECORDING NOW";$("recordHint").textContent="Tap the mic again when you're done";
@@ -253,7 +261,10 @@ $("closeHelp").addEventListener("click",()=>$("helpModal").classList.add("hidden
 $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal"))$("helpModal").classList.add("hidden");});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
 setDates();
-if(!window.VoiceKhataAuth?.isSignedIn()){transactions=[];demoMode=true;}
+if(!window.VoiceKhataAuth?.isSignedIn()){
+  try{transactions=JSON.parse(localStorage.getItem("voicekhata.demo.transactions.v1")||"[]");}catch{transactions=[];}
+  demoMode=true;
+}
 renderAll();
 document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());
 document.addEventListener("voicekhata:signed-out",()=>{transactions=[];demoMode=true;renderAll();});
