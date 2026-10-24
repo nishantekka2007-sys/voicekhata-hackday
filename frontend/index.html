@@ -866,7 +866,7 @@ function renderDuePayments() {
   }
   $("dueCustomerCount").textContent = due.length + (due.length === 1 ? " customer" : " customers");
   $("dueCustomerList").innerHTML = due.length ? due.map(c =>
-    '<button type="button" onclick="selectDueCustomer(\\'' + esc(accountOptionValue(c)).replace(/'/g,"\\\\'") + '\\')" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer"><span><strong style="display:block;font-size:12px;color:var(--ink)">' + esc(accountLabel(c)) + '</strong><small style="color:var(--muted)">' + esc(c.customer_code || "Legacy record") + ' · Open customer account</small></span><strong style="color:#a33333;white-space:nowrap">' + rupees(c.balance) + '</strong></button>'
+    '<button type="button" onclick="selectDueCustomer(\'' + esc(accountOptionValue(c)).replace(/'/g,"\\'") + '\')" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer"><span><strong style="display:block;font-size:12px;color:var(--ink)">' + esc(accountLabel(c)) + '</strong><small style="color:var(--muted)">' + esc(c.customer_code || "Legacy record") + ' · Open customer account</small></span><strong style="color:#a33333;white-space:nowrap">' + rupees(c.balance) + '</strong></button>'
   ).join("") : '<p style="color:var(--muted);font-size:12px;padding:12px 0">No outstanding dues. All customer accounts are settled.</p>';
   updateDuePaymentBalance();
 }
