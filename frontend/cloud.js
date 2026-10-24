@@ -29,6 +29,8 @@
     const label = document.createElement("small");
     label.textContent = signedIn() ? "Signed in: " + (user.name || user.email) : "Browser preview — not synced across devices";
     host.appendChild(label);
+    const login = document.getElementById("cloudGoogleSignIn");
+    if (login) login.style.display = signedIn() ? "none" : "";
     if (signedIn()) {
       const button = document.createElement("button");
       button.textContent = "Sign out";
@@ -42,6 +44,8 @@
     sessionStorage.removeItem(TOKEN_KEY);
     user = null;
     showLogin();
+    const login = document.getElementById("cloudGoogleSignIn");
+    if (login) login.style.display = "";
     showMode("Preview mode: browser-only data; sign in to use your private SQLite ledger.");
     // The local preview is separate from private, synced records.
     transactions = loadTransactions();
@@ -110,8 +114,8 @@
           sessionStorage.removeItem(TOKEN_KEY); user = null;
         }
       }
-      if (signedIn()) return;
-      showMode("Connect your Google account to use the private cloud ledger.");
+      if (signedIn()) showMode("Connected: transactions are stored in your authenticated SQLite ledger.");
+      else showMode("Connect your Google account to use the private cloud ledger.");
       showLogin();
       const login = document.createElement("div");
       login.id = "cloudGoogleSignIn";
