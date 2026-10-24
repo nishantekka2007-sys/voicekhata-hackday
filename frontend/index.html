@@ -1189,9 +1189,10 @@ async function confirmAndSave() {
         savedCustomer = typedName;
       }
     }
-    const entries = [{customer:savedCustomer,customer_id:accountId,customer_identifier:kind === "credit_sale" && !selectedAccount ? identity : (selectedAccount?.identifier || ""),kind,amount,note}];
+    const accountCode = selectedAccount?.customer_code || (kind === "credit_sale" && !selectedAccount ? (window.VoiceKhataCloud?.signedIn() ? "" : "CUS-L" + String(Date.now()).slice(-8)) : "");
+    const entries = [{customer:savedCustomer,customer_id:accountId,customer_code:accountCode,customer_identifier:kind === "credit_sale" && !selectedAccount ? identity : (selectedAccount?.identifier || ""),kind,amount,note}];
     if(kind === "credit_sale" && paidNow > 0) {
-      entries.push({customer:savedCustomer,customer_id:accountId,customer_identifier:kind === "credit_sale" && !selectedAccount ? identity : (selectedAccount?.identifier || ""),kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
+      entries.push({customer:savedCustomer,customer_id:accountId,customer_code:accountCode,customer_identifier:kind === "credit_sale" && !selectedAccount ? identity : (selectedAccount?.identifier || ""),kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
     }
     if (window.VoiceKhataCloud?.signedIn()) {
       for(const entry of entries) {
