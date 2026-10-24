@@ -28,7 +28,7 @@ VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and
 ## Prototype behavior and limitations
 
 - The GitHub Pages prototype is a browser-only demo. Shop details and saved demo transactions are stored in that browser's `localStorage`; they are not synced to the backend or across devices.
-- Voice entry uses the browser's Web Speech API. The prototype offers Hindi, English, and Marathi. In recent Chrome versions, it attempts on-device recognition when a language pack is available and can prompt for a one-time download; English may use the US English on-device pack. Otherwise it falls back to the browser's online speech service, which can fail separately from normal browsing. Allow microphone access and use a compatible browser. Recognition support and accuracy depend on the browser and language pack.
+- Voice entry records audio with the browser's MediaRecorder API and transcribes it in-browser with Transformers.js and the multilingual Whisper Tiny model. Audio is processed in your browser rather than sent to Chrome's remote speech-recognition service. The first use downloads the JavaScript runtime and model from public CDNs; later model use is cached by the browser. Recognition speed and accuracy depend on your device and the selected language.
 - The transaction parser is a deterministic baseline, not a Gemma/Ollama integration. It prepares an editable draft; check the customer, amount, and transaction type before confirming.
 - The FastAPI/SQLite API is a separate backend foundation. GitHub Pages currently serves the browser demo and does not connect that demo to the backend. The backend's private endpoints require Google OAuth and environment configuration.
 - This is a hackathon MVP, not a production financial service. Do not enter real customer data until authentication, backend integration, security, and backups have been reviewed.
@@ -37,8 +37,8 @@ VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and
 
 1. Open the [live demo](https://nishantekka2007-sys.github.io/voicekhata-hackday/) in Chrome or Edge.
 2. Enter the shop owner's name and shop name, then open **Voice Entry**.
-3. Select Hindi, English, or Marathi. Tap the microphone and allow access when prompted.
-4. Speak a transaction, then tap the microphone again to stop. Review the transcribed text and choose **Understand Transaction**.
+3. Select Hindi, English, or Marathi. Tap the microphone and allow access when prompted. On first use, the app downloads the browser-local speech model; keep the page open and the internet connected until loading finishes.
+4. Speak a transaction, then tap the microphone again to stop. Whisper transcribes the recording in the browser. Review the text and choose **Understand Transaction**.
 5. Verify or edit the suggested fields, confirm the transaction, and check the ledger. The saved demo data remains in that browser.
 
 For a local frontend demo, open a terminal in the repository and run:
