@@ -31,3 +31,5 @@ jobs:
           node --check frontend/config.js
           node --check frontend/cloud.js
           node --check frontend/whisper-stt.js
+          node --check frontend/transaction-parser.js
+          node frontend/transaction-parser.test.js
