@@ -316,6 +316,18 @@
           <div><p class="eyebrow">TODAY'S SNAPSHOT</p><h1 id="dashGreeting">Welcome <span class="wave">✳</span></h1></div>
           <button class="btn-primary" style="width:auto;padding:10px 18px;font-size:12px" onclick="navigate('voice')">+ Voice Entry</button>
         </div>
+        <div class="panel" style="margin-bottom:16px;padding:14px 18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div><strong style="font-size:13px">Daily collection &amp; records</strong><p style="font-size:11px;color:var(--muted);margin-top:4px">Choose any date to see payments received and credit given for that day.</p></div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <label for="dashboardDate" style="font-size:11px;font-weight:700">DATE</label>
+              <input class="search-input" id="dashboardDate" type="date" style="max-width:180px" onchange="renderDashboard()">
+              <button class="btn-ghost" type="button" onclick="setDashboardDateToday()">Today</button>
+              <button class="btn-ghost" type="button" onclick="navigate('ledger');setLedgerToday()">View records</button>
+            </div>
+          </div>
+          <p id="collectionDateLabel" style="font-size:11px;color:var(--muted);margin-top:10px">Showing today's collection</p>
+        </div>
         <div class="metric-grid">
           <div class="metric-card"><p class="metric-label">TOTAL DUE (UDHAAR)</p><p class="metric-value" id="metTotalDue">₹0</p><p class="metric-foot">Across all customers</p></div>
           <div class="metric-card"><p class="metric-label">COLLECTED TODAY</p><p class="metric-value" id="metCollected">₹0</p><p class="metric-foot">Payments received</p></div>
@@ -339,7 +351,13 @@
         <div class="page-head">
           <div><p class="eyebrow">FULL HISTORY</p><h1>Khata Ledger</h1></div>
         </div>
-        <input class="search-input" id="ledgerSearch" placeholder="🔍 Search by customer or type..." oninput="renderLedger()">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+          <input class="search-input" id="ledgerSearch" placeholder="🔍 Search customer name or type..." oninput="renderLedger()" style="margin-bottom:0">
+          <label style="font-size:11px;color:var(--muted)">From <input class="search-input" id="ledgerDateFrom" type="date" onchange="renderLedger()" style="max-width:165px"></label>
+          <label style="font-size:11px;color:var(--muted)">To <input class="search-input" id="ledgerDateTo" type="date" onchange="renderLedger()" style="max-width:165px"></label>
+          <button class="btn-ghost" type="button" onclick="setLedgerToday()">Today</button>
+          <button class="btn-ghost" type="button" onclick="clearLedgerFilters()">All dates</button>
+        </div>
         <p class="ledger-count" id="ledgerCount"></p>
         <div class="panel" style="padding:0;overflow:hidden">
           <div class="table-scroll"><table><thead><tr><th style="padding-left:20px">Customer</th><th>Type</th><th>Date &amp; Time</th><th>Note</th><th style="text-align:right">Amount</th><th style="text-align:right;padding-right:20px">Action</th></tr></thead><tbody id="ledgerRows"></tbody></table></div>
@@ -504,6 +522,18 @@ const initials = n => String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]|
 const kindLabels = {credit_sale:"Credit given",payment_received:"Payment received",cash_expense:"Shop expense"};
 const kindClass = k => k==="credit_sale"?"type-credit":k==="payment_received"?"type-payment":"type-expense";
 
+function localDateKey(value = new Date()) {
+  const d = value instanceof Date ? value : new Date(value);
+  if(Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function formatDateLabel(dateKey) {
+  if(!dateKey) return "all dates";
+  const [year,month,day] = dateKey.split("-").map(Number);
+  return new Date(year,month-1,day).toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"});
+}
+
 function dateTime(v) {
   const d = new Date(v);
   if(isNaN(d.getTime())) return "Just now";
@@ -545,8 +575,11 @@ function initApp() {
   $("profAvSidebar").textContent = initials(profile.ownerName);
   $("profNameSidebar").textContent = profile.ownerName;
 
-  // Today label
+  // Today label and default date filters use the shop's local date.
   $("todayLabel").textContent = new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
+  if($("dashboardDate")) $("dashboardDate").value = localDateKey();
+  if($("ledgerDateFrom")) $("ledgerDateFrom").value = "";
+  if($("ledgerDateTo")) $("ledgerDateTo").value = "";
 
   // Load data
   transactions = loadTransactions();
@@ -609,33 +642,44 @@ function balancesByCustomer() {
   }));
 }
 
+function setDashboardDateToday() {
+  if($("dashboardDate")) $("dashboardDate").value = localDateKey();
+  renderDashboard();
+}
+
 function renderDashboard() {
   const profile = getShopProfile();
   const firstName = (profile?.ownerName||"").split(" ")[0];
   $("dashGreeting").innerHTML = "Welcome" + (firstName ? `, ${esc(firstName)}` : " to VoiceKhata") + ' <span class="wave">✳</span>';
 
-  const today = new Date().toISOString().slice(0,10);
+  const selectedDate = $("dashboardDate")?.value || localDateKey();
+  const isToday = selectedDate === localDateKey();
   const balances = balancesByCustomer();
   const totalDue = balances.reduce((s,b) => s + Math.max(0, b.balance), 0);
-  const todayTxns = transactions.filter(t => t.created_at.startsWith(today));
-  const collected = todayTxns.filter(t=>t.kind==="payment_received").reduce((s,t)=>s+Number(t.amount),0);
-  const credit = todayTxns.filter(t=>t.kind==="credit_sale").reduce((s,t)=>s+Number(t.amount),0);
+  const dayTransactions = transactions.filter(t => localDateKey(t.created_at) === selectedDate);
+  const collected = dayTransactions.filter(t=>t.kind==="payment_received").reduce((s,t)=>s+Number(t.amount),0);
+  const credit = dayTransactions.filter(t=>t.kind==="credit_sale").reduce((s,t)=>s+Number(t.amount),0);
   const activeCustomers = balances.filter(b=>b.balance>0).length;
 
   $("metTotalDue").textContent = rupees(totalDue);
   $("metCollected").textContent = rupees(collected);
   $("metCredit").textContent = rupees(credit);
   $("metCustomers").textContent = activeCustomers;
+  const collectedLabel = document.querySelector("#metCollected")?.parentElement?.querySelector(".metric-label");
+  const creditLabel = document.querySelector("#metCredit")?.parentElement?.querySelector(".metric-label");
+  if(collectedLabel) collectedLabel.textContent = isToday ? "COLLECTED TODAY" : "COLLECTED ON DATE";
+  if(creditLabel) creditLabel.textContent = isToday ? "CREDIT TODAY" : "CREDIT ON DATE";
+  const dateLabel = $("collectionDateLabel");
+  if(dateLabel) dateLabel.textContent = `${isToday ? "Today's collection and credit" : "Collection and credit for " + formatDateLabel(selectedDate)} · ${dayTransactions.length} transaction(s)`;
 
-  // Recent rows
-  const recent = [...transactions].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
+  const recent = [...dayTransactions].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
   $("recentRows").innerHTML = recent.length ? recent.map((t,i) => `
     <tr>
       <td><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}</strong><small>${esc(t.note||"")}</small></div></div></td>
       <td><span class="type-pill ${kindClass(t.kind)}">${kindLabels[t.kind]}</span></td>
       <td style="font-size:11px;color:var(--muted)">${dateTime(t.created_at)}</td>
       <td class="amount-cell ${t.kind!=="payment_received"?"outgoing":""}">${t.kind==="payment_received"?"−":"+"}${rupees(t.amount)}</td>
-    </tr>`).join("") : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No transactions yet.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No transactions for this date. Choose another date or view all records.</td></tr>';
 
   renderChart();
 }
@@ -662,11 +706,32 @@ function renderChart() {
 }
 
 // ── Ledger ────────────────────────────────────────────────
+function setLedgerToday() {
+  const today = localDateKey();
+  if($("ledgerDateFrom")) $("ledgerDateFrom").value = today;
+  if($("ledgerDateTo")) $("ledgerDateTo").value = today;
+  renderLedger();
+}
+
+function clearLedgerFilters() {
+  if($("ledgerSearch")) $("ledgerSearch").value = "";
+  if($("ledgerDateFrom")) $("ledgerDateFrom").value = "";
+  if($("ledgerDateTo")) $("ledgerDateTo").value = "";
+  renderLedger();
+}
+
 function renderLedger() {
-  const q = ($("ledgerSearch")?.value||"").toLowerCase();
+  const q = ($("ledgerSearch")?.value||"").trim().toLocaleLowerCase();
+  const from = $("ledgerDateFrom")?.value || "";
+  const to = $("ledgerDateTo")?.value || "";
   const sorted = [...transactions].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  const filtered = sorted.filter(t => (t.customer+" "+t.note+" "+(kindLabels[t.kind]||"")).toLowerCase().includes(q));
-  $("ledgerCount").textContent = `${filtered.length} transaction${filtered.length!==1?"s":""} shown · dates and times are recorded automatically`;
+  const filtered = sorted.filter(t => {
+    const matchesText = (t.customer+" "+t.note+" "+(kindLabels[t.kind]||"")).toLocaleLowerCase().includes(q);
+    const date = localDateKey(t.created_at);
+    return matchesText && (!from || date >= from) && (!to || date <= to);
+  });
+  const rangeLabel = from || to ? ` · ${from ? formatDateLabel(from) : "earliest"} – ${to ? formatDateLabel(to) : "latest"}` : " · all dates";
+  $("ledgerCount").textContent = `${filtered.length} transaction${filtered.length!==1?"s":""} shown${rangeLabel} · dates and times are recorded automatically`;
   $("ledgerRows").innerHTML = filtered.length ? filtered.map((t,i) => `
     <tr>
       <td style="padding-left:20px"><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}</strong></div></div></td>
@@ -675,7 +740,7 @@ function renderLedger() {
       <td style="font-size:11px;color:var(--muted);max-width:180px">${esc(t.note||"—")}</td>
       <td class="amount-cell ${t.kind!=="payment_received"?"outgoing":""}" style="text-align:right">${t.kind==="payment_received"?"−":"+"}${rupees(t.amount)}</td>
       <td style="padding-right:20px"><div class="ledger-actions"><button class="delete-btn" onclick="deleteTransaction('${esc(t.id)}')" aria-label="Delete transaction for ${esc(t.customer)}">🗑 Delete</button></div></td>
-    </tr>`).join("") : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No transactions found.</td></tr>';
+    </tr>`).join("") : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No transactions match these filters.</td></tr>';
 }
 
 // ── Customers ─────────────────────────────────────────────
