@@ -70,6 +70,7 @@ function updateMetrics(){
   $("totalDue").textContent=rupees(due);
   $("collectedToday").textContent=rupees(collected);
   $("creditToday").textContent=rupees(credit);
+  const creditCount=$("creditCountToday");if(creditCount)creditCount.textContent=todayRows.filter(item=>item.kind==="credit_sale").length+" transactions";
   $("activeCustomers").textContent=String(balances.length);
   const title=document.querySelector("#view-dashboard .page-heading h1");
   const user=window.VoiceKhataAuth?.profile();
@@ -222,38 +223,72 @@ async function saveTransaction(event){
   renderAll();navigate("ledger");
 }
 async function startRecording(){
-  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){showToast("Microphone recording isn't supported in this browser. You can type the transaction instead.");return;}
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    showToast("Live speech-to-text is not supported in this browser. Try Chrome, or type the transaction.");
+    return;
+  }
+  if(window.voiceKhataRecognition){
+    try{window.voiceKhataRecognition.stop();}catch{}
+    return;
+  }
   try{
-    recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    recordedChunks=[];
-    const preferred=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")?"audio/webm;codecs=opus":"";
-    mediaRecorder=new MediaRecorder(recordingStream,preferred?{mimeType:preferred}:{});
-    mediaRecorder.ondataavailable=event=>{if(event.data.size)recordedChunks.push(event.data);};
-    mediaRecorder.onstop=async()=>{
-      recordingStream?.getTracks().forEach(track=>track.stop());
-      $("recordButton").classList.remove("recording");$("recordStatus").textContent="PROCESSING AUDIO";$("recordHint").textContent="Sending audio for transcription…";
-      const blob=new Blob(recordedChunks,{type:mediaRecorder.mimeType||"audio/webm"});
-      const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");
-      const selectedLanguage=$("languageSelect").value;
-      form.append("language",selectedLanguage==="mixed"?"auto":selectedLanguage);
-      form.append("input_language",selectedLanguage);
-      try{
-        const result=await apiRequest("/voice/transcribe",{method:"POST",body:form});
-        const transcript=result.text||result.transcript||"";
-        if(!transcript.trim()) throw new Error("The speech service returned an empty transcript.");
-        $("transcriptInput").value=transcript;
-        $("recordHint").textContent="Transcription ready — check the words, then choose Understand transaction";
-        showToast("Audio transcribed. Now review the transaction details.");
-      }catch(error){
-        $("recordHint").textContent="Transcription failed. Check the backend and Gemma 4 setup.";
-        showToast(error.message||"Audio was not transcribed. Check the backend and Gemma 4 setup.");
-      }finally{$("recordStatus").textContent="READY WHEN YOU ARE";}
+    const recognition=new SpeechRecognition();
+    window.voiceKhataRecognition=recognition;
+    recognition.continuous=false;
+    recognition.interimResults=true;
+    const selectedLanguage=$("languageSelect").value;
+    recognition.lang=selectedLanguage==="hi"?"hi-IN":selectedLanguage==="bn"?"bn-IN":"en-IN";
+    const existing=$("transcriptInput").value.trim();
+    let finalText=existing?existing+" ":"";
+    recognition.onstart=()=>{
+      $("recordButton").classList.add("recording");
+      $("recordStatus").textContent="RECORDING NOW";
+      $("recordHint").textContent="Speak clearly. Click the microphone again to stop.";
+      $("recordButton").setAttribute("aria-label","Stop recording");
     };
-    mediaRecorder.start();$("recordButton").classList.add("recording");$("recordStatus").textContent="RECORDING NOW";$("recordHint").textContent="Tap the mic again when you're done";
-    $("recordButton").setAttribute("aria-label","Stop recording");$("recordButton").onclick=stopRecording;
-  }catch(error){showToast("Microphone permission was blocked. Allow access or type the transaction.");}
+    recognition.onresult=event=>{
+      let interim="";
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const phrase=event.results[i][0].transcript;
+        if(event.results[i].isFinal)finalText+=phrase+" ";
+        else interim+=phrase;
+      }
+      $("transcriptInput").value=(finalText+interim).trim();
+    };
+    recognition.onerror=event=>{
+      const messages={"not-allowed":"Microphone permission is blocked. Allow microphone access for this site.","service-not-allowed":"Browser speech recognition is blocked.","no-speech":"No speech detected. Tap the mic and speak after recording starts.","audio-capture":"No working microphone was found."};
+      showToast(messages[event.error]||("Speech recognition error: "+event.error));
+    };
+    recognition.onend=()=>{
+      window.voiceKhataRecognition=null;
+      $("recordButton").classList.remove("recording");
+      $("recordStatus").textContent="READY WHEN YOU ARE";
+      $("recordHint").textContent=$("transcriptInput").value.trim()?"Transcription ready — check the text, then choose Understand transaction.":"No text captured. Try again or type the transaction.";
+      $("recordButton").setAttribute("aria-label","Start recording");
+    };
+    recognition.start();
+    $("recordButton").onclick=()=>{try{recognition.stop();}catch{}};
+  }catch(error){
+    window.voiceKhataRecognition=null;
+    showToast("Could not start speech recognition. Check microphone permission or type the transaction.");
+  }
 }
-function stopRecording(){if(mediaRecorder&&mediaRecorder.state!=="inactive"){mediaRecorder.stop();$("recordButton").setAttribute("aria-label","Start recording");$("recordButton").onclick=startRecording;}}
+function loadShopProfile(){
+  let profile={};
+  try{profile=JSON.parse(localStorage.getItem("voicekhata.shop.profile")||"{}");}catch{}
+  const params=new URLSearchParams(location.search);
+  const ownerName=(params.get("ownerName")||profile.ownerName||"").trim();
+  const shopName=(params.get("shopName")||profile.shopName||"").trim();
+  if(ownerName||shopName){
+    profile={ownerName,shopName};
+    try{localStorage.setItem("voicekhata.shop.profile",JSON.stringify(profile));}catch{}
+  }
+  const shopLabel=document.getElementById("shopNameLabel");
+  const ownerLabel=document.getElementById("shopOwnerLabel");
+  if(shopLabel)shopLabel.textContent=profile.shopName||"Set up your shop";
+  if(ownerLabel)ownerLabel.textContent=profile.ownerName||"Owner account";
+}
 function setDates(){
   const now=new Date();
   $("todayLabel").textContent=now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
@@ -278,6 +313,7 @@ $("closeHelp").addEventListener("click",()=>$("helpModal").classList.add("hidden
 $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal"))$("helpModal").classList.add("hidden");});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
 setDates();
+loadShopProfile();
 if(!window.VoiceKhataAuth?.isSignedIn()){
   try{transactions=JSON.parse(localStorage.getItem("voicekhata.demo.transactions.v1")||"[]");}catch{transactions=[];}
   demoMode=true;
