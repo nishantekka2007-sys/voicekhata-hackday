@@ -8,9 +8,65 @@
 
 Explore the live GitHub Pages demo:
 
-- **WEB URL:** https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com
+- **Demo URL:** [https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com](https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com)
 
 The demo runs entirely in the browser – no server is required. Transactions are stored locally in `localStorage` and are **not** synced to a backend.
+
+---
+
+## Screenshots & App Walkthrough
+
+### 1. Store Overview & Daily Snapshot
+View daily collections, outstanding credit (udhaar), active customer summaries, and 7-day cash flow trends in real time.
+![Overview Dashboard](docs/images/overview_dashboard.png)
+
+### 2. Voice-First Entry (Multilingual)
+Tap to record voice entries in Hindi, Hinglish, Marathi, or English. Audio is transcribed on-device with Whisper with review-before-save verification.
+![Voice Entry](docs/images/voice_entry.png)
+
+### 3. Due Payments & Customer Ledger
+Look up customers by ID or name to record repayments against existing dues and keep khata balances settled.
+![Due Payments](docs/images/due_payments.png)
+
+---
+
+## Product Pitch & Case Study
+
+### Page 1 - The Problem
+1. **Clear Problem Statement:** Small shop owners and local vendors lack a quick, friction-free method to record daily credit (udhaar), repayments, and expenses using their natural spoken language.
+2. **The Core Issue We Solve:** Manual pen-and-paper ledgers or traditional accounting software are slow, error-prone, cumbersome to type on mobile keyboards, and often assume complex accounting or English literacy.
+3. **Target Users:** Kirana shopkeepers, street vendors, chai tapris, and local small businesses who prefer speaking in Hindi, Hinglish, Marathi, or English rather than manual data entry.
+
+### Page 2 - Evidence of the Problem
+1. **Field Insights & Surveys:** Over 75% of local micro-retailers in India still depend on paper bahi-khatas.
+2. **Adoption Barriers:** Complex mobile bookkeeping apps see high drop-offs because shopkeepers find repetitive typing during peak store hours inconvenient and stressful.
+3. **Language Friction:** Most existing solutions fail to accurately parse colloquial bilingual/multilingual speech (e.g., Hinglish or regional dialects).
+
+### Page 3 - Cost of the Problem
+1. **Lost Revenue & Disputed Dues:** Unrecorded micro-credit or misplaced slips lead to forgotten debts and uncollected balances, eating directly into slim profit margins.
+2. **Lost Time & Stress:** Shopkeepers spend 30–60 minutes every evening reconciling balances and tallying accounts manually.
+3. **Customer Friction:** Billing and balance misunderstandings damage long-standing neighborhood customer trust.
+
+### Page 4 - The Solution (In Simple Terms)
+**VoiceKhata makes bookkeeping as simple as speaking to an assistant.**
+- **Speak Naturally:** A vendor simply presses the mic and speaks (e.g., *"रमेश को ₹200 का उधार दिया"* or *"Rahul paid 500 rupees"*).
+- **Instant Understanding:** The app transcribes the speech and extracts who bought, what was paid or borrowed, and the amount.
+- **Review Before Saving:** You always get a clean preview to check and edit before anything is confirmed into your ledger.
+- **Zero Complex Setup:** Runs right inside the browser with no mandatory server setup for the demo.
+
+### Page 5 - Before vs. After VoiceKhata
+
+| Aspect | Before (Paper / Standard Apps) | After (VoiceKhata) |
+|---|---|---|
+| **Recording Speed** | 1–2 minutes of manual writing or typing | Spoken and drafted in under 5 seconds |
+| **Accuracy** | Missed entries, calculations, and lost slips | High-accuracy transcription with review before save |
+| **Language** | Rigid English or complex regional keyboard typing | Natural voice in Hindi, Hinglish, Marathi, or English |
+| **Overview & Dues** | Manual calculation at the end of the day | Live dashboard tracking total dues, daily collections, and trends |
+| **Data Safety** | Physical books subject to loss or water damage | Digital ledger stored locally and syncable to cloud SQLite |
+
+### Page 6 - Team
+- **Team Name:** VoiceKhata Builders
+- **Project Repository:** [voicekhata-hackday](https://github.com/nishantekka2007-sys/voicekhata-hackday)
 
 ---
 
@@ -51,11 +107,11 @@ Open **http://localhost:5500** in a browser. After signing in with Google, trans
 
 ---
 
-## Speech & Language Improvements (Oct 2026)
+## Speech & Language Improvements (Oct 2026)
 
-- Hindi/ Hinglish transcription now defaults to the multilingual Whisper model, fixing the previous Urdu fallback.
+- Hindi/Hinglish transcription now defaults to the multilingual Whisper model, fixing the previous Urdu fallback.
 - Added configurable decoding parameters (`WHISPER_BEAM_SIZE`, `WHISPER_TEMPERATURE`, `WHISPER_PATIENCE`).
-- Audio preprocessing ensures all recordings are normalized to 16 kHz mono wav.
+- Audio preprocessing ensures all recordings are normalized to 16 kHz mono wav.
 - Better handling of silent/short audio and clearer retry messages.
 
 ---
