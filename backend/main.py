@@ -291,7 +291,7 @@ def create_transaction(body: TransactionCreate, user: dict = Depends(authenticat
                 raise HTTPException(status_code=404, detail="Customer account not found for this shop.")
             customer = account["display_name"]
             if account["identifier"]:
-                customer = f"{customer} · {account['identifier']}"
+                customer = account["display_name"]
         cursor = conn.execute(
             """INSERT INTO transactions (user_id, customer, customer_id, kind, amount_paise, note, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
