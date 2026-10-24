@@ -35,3 +35,17 @@ def test_google_login_fails_closed_without_client_id(monkeypatch):
     with TestClient(main.app) as client:
         response = client.post("/api/auth/google", json={"credential": "a" * 40})
         assert response.status_code in (401, 503)
+
+
+def test_full_stack_frontend_is_served_by_api():
+    """One FastAPI process serves both the real website and the authenticated ledger API."""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    with TestClient(app) as client:
+        website = client.get("/")
+        assert website.status_code == 200
+        assert "VoiceKhata" in website.text
+        assert 'src="cloud.js"' in website.text
+        assert client.get("/cloud.js").status_code == 200
+        assert client.get("/config.js").status_code == 200
+        assert client.get("/api/transactions").status_code == 401

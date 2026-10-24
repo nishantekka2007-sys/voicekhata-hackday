@@ -2,7 +2,7 @@ name: Backend tests
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**"]
+    branches: [main, "feat/**", "fix/**", "integration/**"]
   pull_request:
     branches: [main, "feat/**", "fix/**"]
 
@@ -28,3 +28,6 @@ jobs:
         run: |
           node --check frontend/app.js
           node --check frontend/auth.js
+          node --check frontend/config.js
+          node --check frontend/cloud.js
+          node --check frontend/whisper-stt.js

@@ -11,6 +11,7 @@ from typing import Literal
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent
@@ -274,7 +275,36 @@ def _daily_flow(credit_rows: list[dict], payment_rows: list[dict]) -> list[dict]
 
 @app.post("/api/transactions/parse")
 def parse_transaction(body: TransactionParse, user: dict = Depends(authenticated_user)):
-    """Conservative parser. Returns a draft only; it never inserts a row."""
+    """Prepare an unsaved draft. Optional local Gemma model; never writes to SQLite."""
+    if os.getenv("VOICEKHATA_USE_GEMMA", "0") == "1":
+        try:
+            from gemma_ai import extract_transactions
+            result = extract_transactions(body.text)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Local Gemma is unavailable.") from exc
+        if not result.get("success"):
+            raise HTTPException(status_code=503, detail="Gemma extraction failed; nothing was saved.")
+        entries = result.get("transactions", [])
+        if len(entries) != 1:
+            raise HTTPException(status_code=422, detail="For safety, record one transaction at a time.")
+        entry = entries[0]
+        if entry.get("missing_fields"):
+            # Return missing fields for manual review, but NEVER invent money.
+            missing = ", ".join(entry["missing_fields"])
+        else:
+            missing = ""
+        kind = {"credit": "credit_sale", "payment": "payment_received"}.get(entry.get("type"))
+        if not kind:
+            raise HTTPException(status_code=422, detail="Unclear credit/payment type. Please type the transaction manually.")
+        return {
+            "customer": entry.get("customer_name") or "",
+            "kind": kind,
+            "amount": entry.get("amount") or 0,
+            "note": body.text.strip(),
+            "requires_confirmation": True,
+            "model_used": result.get("model_used"),
+            "review_warning": ("Please complete: " + missing) if missing else "Check every field before saving.",
+        }
     import re
     text = body.text.strip()
     amount_match = re.search(
@@ -303,3 +333,10 @@ def parse_transaction(body: TransactionParse, user: dict = Depends(authenticated
         "customer": customer, "kind": kind, "amount": amount, "note": text,
         "requires_confirmation": True,
     }
+
+
+# Serve the existing responsive web frontend from the SAME FastAPI origin.
+# Register this catch-all mount after every /api route so API routes take priority.
+FRONTEND_DIR = ROOT.parent / "frontend"
+if FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
