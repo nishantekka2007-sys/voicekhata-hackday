@@ -973,6 +973,15 @@ ther</button>
         </div>
         <input class="search-input" id="custSearch" placeholder="🔍 Search customers..." oninput="renderCustomers()" style="margin-bottom:18px">
         <div class="customer-grid" id="customerGrid"></div>
+        <section id="customerDetailPanel" class="panel hidden" aria-live="polite" style="margin-top:20px;border-radius:18px">
+          <div class="panel-head" style="gap:12px;flex-wrap:wrap">
+            <div><p class="eyebrow">CUSTOMER ACCOUNT</p><h2 id="customerDetailName" style="font:800 22px Manrope,sans-serif"></h2><small id="customerDetailMeta" style="color:var(--muted)"></small></div>
+            <button type="button" class="btn-ghost" onclick="closeCustomerDetails()">Close details ×</button>
+          </div>
+          <div id="customerDetailStats" class="customer-money" style="margin-bottom:18px"></div>
+          <h3 style="font:700 14px Manrope,sans-serif;margin:8px 0 12px">Transaction history</h3>
+          <div class="table-scroll"><table><thead><tr><th>TYPE</th><th>DATE & TIME</th><th>NOTE</th><th style="text-align:right">AMOUNT</th><th style="text-align:right">BALANCE AFTER</th></tr></thead><tbody id="customerDetailRows"></tbody></table></div>
+        </section>
       </div>
 
     </div><!-- /content -->
@@ -1422,7 +1431,8 @@ function renderCustomers() {
     const badge = isSettled
       ? '<span class="paid-status" aria-label="Paid in full">✓ PAID IN FULL</span>'
       : '<span class="due-status">● PAYMENT DUE</span>';
-    return `<div class="customer-card" style="display:block">
+    const key = encodeURIComponent(String(b.customer_id ?? b.customer_code ?? b.customer));
+    return `<button type="button" class="customer-card" data-customer-key="${esc(key)}" onclick="openCustomerDetails(decodeURIComponent(this.dataset.customerKey))" aria-label="View full account for ${esc(b.customer)}" style="display:block;width:100%;text-align:left;cursor:pointer">
       <div style="display:flex;align-items:center;gap:10px">
         <span class="av ${toneClass(i)}" style="width:38px;height:38px;border-radius:10px;font-size:13px">${esc(initials(b.customer))}</span>
         <div class="customer-info"><strong>${esc(b.customer)}${b.customer_code ? " · " + esc(b.customer_code) : ""}</strong><small>Last activity: ${dateTime(b.lastActivity)}</small></div>
@@ -1431,11 +1441,38 @@ function renderCustomers() {
       <div class="customer-money">
         <div><small>Total credit</small><strong>${rupees(b.total)}</strong></div>
         <div><small>Paid so far</small><strong>${rupees(b.paid)}</strong></div>
-        <div><small>Left to pay</small><strong style="color:${isSettled?"#1a7a48":"#a33333"}">${rupees(b.balance)} ${isSettled?"✓":""}</strong></div>
+        <div><small>Amount due</small><strong style="color:${isSettled?"#1a7a48":"#a33333"}">${rupees(b.balance)} ${isSettled?"✓":""}</strong></div>
       </div>
-    </div>`;
+      <small style="display:block;text-align:right;color:#236451;font-weight:700;margin-top:12px">View full account & transaction history →</small>
+    </button>`;
   }).join("") : '<p style="color:var(--muted);font-size:12px">No customers found yet. Add a credit sale or payment from Voice Entry.</p>';
 }
+function openCustomerDetails(key) {
+  const summaries = customerSummaries();
+  const account = summaries.find(b => String(b.customer_id ?? b.customer_code ?? b.customer) === String(key));
+  if (!account) { showToast("Could not find that customer account. Refresh and try again."); return; }
+  const sameCustomer = t => account.customer_id != null && t.customer_id != null
+    ? String(account.customer_id) === String(t.customer_id)
+    : (account.customer_code && t.customer_code ? account.customer_code === t.customer_code : t.customer === account.customer);
+  const rows = transactions.filter(sameCustomer).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  $("customerDetailName").textContent = account.customer;
+  $("customerDetailMeta").textContent = "Customer ID: " + (account.customer_code || (account.customer_id != null ? "CUS-" + String(account.customer_id).padStart(6,"0") : "Not assigned")) + " · " + rows.length + " transaction(s)";
+  $("customerDetailStats").innerHTML = [
+    ["Total credit",account.total,"#263d30"],
+    ["Paid amount",account.paid,"#236451"],
+    ["Amount due",account.balance,account.balance>0?"#a33333":"#1a7a48"]
+  ].map(([label,value,color])=>'<div><small>'+esc(label)+'</small><strong style="color:'+color+'">'+rupees(value)+'</strong></div>').join("");
+  let balance = 0;
+  $("customerDetailRows").innerHTML = rows.length ? rows.map(t => {
+    if (t.kind === "credit_sale") balance += Number(t.left_amount ?? t.amount ?? 0);
+    else if (t.kind === "payment_received") balance -= Number(t.amount || 0);
+    return '<tr><td><span class="type-pill '+kindClass(t.kind)+'">'+esc(kindLabels[t.kind] || t.kind || "Other")+'</span></td><td style="white-space:nowrap;font-size:11px">'+esc(dateTime(t.created_at))+'</td><td>'+esc(t.note || t.product || "—")+'</td><td style="text-align:right;font-weight:700">'+rupees(t.amount)+'</td><td style="text-align:right;font-weight:700;color:'+(balance>0?"#a33333":"#1a7a48")+'">'+rupees(Math.max(0,balance))+'</td></tr>';
+  }).join("") : '<tr><td colspan="5" style="text-align:center;padding:22px;color:var(--muted)">No transaction history for this customer yet.</td></tr>';
+  const panel = $("customerDetailPanel");
+  panel.classList.remove("hidden");
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function closeCustomerDetails() { $("customerDetailPanel")?.classList.add("hidden"); }
 
 async function deleteTransaction(id) {
   const txn = transactions.find(t => String(t.id) === String(id));
