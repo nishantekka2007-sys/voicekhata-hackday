@@ -273,54 +273,93 @@ async function saveTransaction(event){
   renderAll();navigate("ledger");
 }
 async function startRecording(){
-  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SpeechRecognition){
-    showToast("Live speech-to-text is not supported in this browser. Try Chrome, or type the transaction.");
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (window.voiceKhataRecognition) {
+    try { window.voiceKhataRecognition.stop(); } catch {}
     return;
   }
-  if(window.voiceKhataRecognition){
-    try{window.voiceKhataRecognition.stop();}catch{}
+
+  if (!SpeechRecognition) {
+    $("recordStatus").textContent = "BROWSER NOT SUPPORTED";
+    $("recordHint").textContent = "Live voice typing needs a current version of Google Chrome. You can still type the transaction below.";
+    showToast("Live speech-to-text is not available in this browser. Open VoiceKhata in current Google Chrome or type the transaction.");
     return;
   }
-  try{
-    const recognition=new SpeechRecognition();
-    window.voiceKhataRecognition=recognition;
-    recognition.continuous=false;
-    recognition.interimResults=true;
-    const selectedLanguage=$("languageSelect").value;
-    recognition.lang=selectedLanguage==="hi"?"hi-IN":selectedLanguage==="bn"?"bn-IN":"en-IN";
-    const existing=$("transcriptInput").value.trim();
-    let finalText=existing?existing+" ":"";
-    recognition.onstart=()=>{
+
+  try {
+    const recognition = new SpeechRecognition();
+    window.voiceKhataRecognition = recognition;
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    const selectedLanguage = $("languageSelect").value;
+    const languageMap = { en: "en-IN", hi: "hi-IN", bn: "bn-IN", mixed: "en-IN", auto: "en-IN" };
+    recognition.lang = languageMap[selectedLanguage] || "en-IN";
+
+    const existingText = $("transcriptInput").value.trim();
+    let finalText = existingText ? existingText + " " : "";
+    let interimText = "";
+    let recognitionError = "";
+
+    recognition.onstart = () => {
       $("recordButton").classList.add("recording");
-      $("recordStatus").textContent="RECORDING NOW";
-      $("recordHint").textContent="Speak clearly. Click the microphone again to stop.";
-      $("recordButton").setAttribute("aria-label","Stop recording");
+      $("recordStatus").textContent = "RECORDING NOW";
+      $("recordHint").textContent = "Speak now. Your recognized words will appear in the transaction box below. Tap the mic to stop.";
+      $("recordButton").setAttribute("aria-label", "Stop recording");
     };
-    recognition.onresult=event=>{
-      let interim="";
-      for(let i=event.resultIndex;i<event.results.length;i++){
-        const phrase=event.results[i][0].transcript;
-        if(event.results[i].isFinal)finalText+=phrase+" ";
-        else interim+=phrase;
+
+    recognition.onresult = event => {
+      interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const phrase = (event.results[i][0]?.transcript || "").trim();
+        if (!phrase) continue;
+        if (event.results[i].isFinal) finalText += phrase + " ";
+        else interimText += phrase + " ";
       }
-      $("transcriptInput").value=(finalText+interim).trim();
+      $("transcriptInput").value = (finalText + interimText).trim();
+      if ($("transcriptInput").value) {
+        $("recordHint").textContent = "Speech detected — check the text below. Tap the mic to stop.";
+      }
     };
-    recognition.onerror=event=>{
-      const messages={"not-allowed":"Microphone permission is blocked. Allow microphone access for this site.","service-not-allowed":"Browser speech recognition is blocked.","no-speech":"No speech detected. Tap the mic and speak after recording starts.","audio-capture":"No working microphone was found."};
-      showToast(messages[event.error]||("Speech recognition error: "+event.error));
+
+    recognition.onerror = event => {
+      const messages = {
+        "not-allowed": "Microphone access is blocked. In Chrome, allow Microphone for localhost:5500 and try again.",
+        "service-not-allowed": "The browser blocked its speech service. Check Chrome site permissions and try again.",
+        "no-speech": "No speech detected. Tap the mic and begin speaking after it says RECORDING NOW.",
+        "audio-capture": "No working microphone was found. Check your Mac's microphone input.",
+        "network": "Chrome could not reach its speech-recognition service. Check your internet connection and retry.",
+        "language-not-supported": "This speech language is not supported by the browser. Choose English, Hindi, or Bengali."
+      };
+      recognitionError = messages[event.error] || ("Speech recognition error: " + event.error);
+      $("recordStatus").textContent = "RECORDING ISSUE";
+      $("recordHint").textContent = recognitionError;
+      if (event.error !== "aborted") showToast(recognitionError);
     };
-    recognition.onend=()=>{
-      window.voiceKhataRecognition=null;
+
+    recognition.onend = () => {
+      if (window.voiceKhataRecognition === recognition) window.voiceKhataRecognition = null;
       $("recordButton").classList.remove("recording");
-      $("recordStatus").textContent="READY WHEN YOU ARE";
-      $("recordHint").textContent=$("transcriptInput").value.trim()?"Transcription ready — check the text, then choose Understand transaction.":"No text captured. Try again or type the transaction.";
-      $("recordButton").setAttribute("aria-label","Start recording");
+      $("recordButton").setAttribute("aria-label", "Start recording");
+      const hasText = !!$("transcriptInput").value.trim();
+      $("recordStatus").textContent = hasText ? "TRANSCRIPTION READY" : "READY WHEN YOU ARE";
+      if (!recognitionError) {
+        $("recordHint").textContent = hasText
+          ? "Text captured. Review or edit it, then choose Understand transaction."
+          : "No words were captured. Allow microphone access, speak clearly, and try again.";
+      }
     };
+
     recognition.start();
-  }catch(error){
-    window.voiceKhataRecognition=null;
-    showToast("Could not start speech recognition. Check microphone permission or type the transaction.");
+  } catch (error) {
+    window.voiceKhataRecognition = null;
+    $("recordButton").classList.remove("recording");
+    $("recordButton").setAttribute("aria-label", "Start recording");
+    $("recordStatus").textContent = "COULD NOT START";
+    $("recordHint").textContent = "Check Chrome microphone permission, then try again or type the transaction.";
+    showToast("Could not start speech recognition. Check Chrome microphone permission and try again.");
   }
 }
 function getShopProfile(){
