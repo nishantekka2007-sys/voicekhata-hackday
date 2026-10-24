@@ -1,99 +1,223 @@
 # VoiceKhata
 
-**A voice-first digital ledger for small vendors and local shops.**
+**A voice-first digital khata for small shops and local vendors in India.**
 
-VoiceKhata helps shopkeepers track credit sales (udhaar), payments received, and shop expenses through a simple ledger with a review-before-save workflow.
+VoiceKhata is a hackathon MVP that helps shopkeepers record customer credit sales and payments with a review-before-save workflow. The goal is to make everyday ledger entry easier using natural speech and a simple dashboard.
 
-## Features
+> **Project status:** Active prototype. The repository contains a FastAPI + SQLite application and a Gemma 4 audio-transcription endpoint. A public live demo has not been confirmed; use the local setup below. AI transcription, Google sign-in, and deployment should be tested in the target environment before relying on them.
 
-- Responsive dashboard with ledger-derived totals and money-flow chart
-- Searchable transaction history
-- Customer balance summaries
-- Manual transaction entry with confirmation before saving
-- Google Identity Services sign-in foundation
-- FastAPI backend with SQLite and user-scoped transactions
-- API health and authentication tests
+## Links
 
-## Stack
+- **Repository:** https://github.com/nishantekka2007-sys/voicekhata-hackday
+- **Live website/demo:** Not deployed yet
+- **API documentation (local):** http://127.0.0.1:8000/docs
 
-- Frontend: HTML, CSS, JavaScript
-- Backend: Python, FastAPI, Pydantic
-- Database: SQLite; amounts stored as integer paise
-- Charts: Chart.js
-- Authentication: Google Identity Services
+## What it aims to do
 
-## Current limitations
+- Capture a shopkeeper's voice recording from the web interface.
+- Send audio to the FastAPI backend for transcription with Gemma 4.
+- Let the user review transaction details before saving.
+- Record customer, product, due amount, paid amount, and remaining amount.
+- Store transactions in SQLite and display ledger summaries.
+- Keep transaction data scoped to the signed-in Google account when Google OAuth is configured.
 
-- Google OAuth must be configured before private ledger actions can be used.
-- Voice recording UI exists, but speech-to-text is not connected in this branch.
-- Transaction parsing is a deterministic baseline, not a Gemma/Ollama integration. Always verify the extracted name, amount and transaction type.
-- This is a hackathon MVP, not a production financial service. Use HTTPS, review session handling, and back up the database before entering real customer data.
+For a credit sale, the remaining amount is calculated as **due amount − paid amount**. Review the draft before saving; speech recognition can make mistakes.
 
-## Run locally
+## Technology
 
-Requires Python 3.10+.
+| Layer | Technology |
+| --- | --- |
+| Frontend | HTML, CSS, JavaScript |
+| API | Python, FastAPI, Uvicorn |
+| AI audio transcription | Hugging Face Transformers pipeline configured for google/gemma-4-E2B-it |
+| Audio conversion | FFmpeg |
+| Database | SQLite |
+| Authentication | Google Identity Services / Google ID-token verification |
+| Tests | pytest |
 
-### 1. Start the backend
+## Repository layout
+
+```text
+voicekhata-hackday/
+├── backend/
+│   ├── main.py              # FastAPI routes, auth, SQLite, voice transcription
+│   ├── requirements.txt     # Backend Python dependencies
+│   ├── README.md            # Backend setup and API notes
+│   └── tests/               # Backend tests (where present)
+├── frontend/
+│   ├── index.html           # Main web interface
+│   ├── app.js               # UI and API interactions
+│   └── styles.css           # Interface styles
+├── tests/                   # Additional project tests
+├── app.py                   # Earlier prototype entry point
+├── ledger.py                # Ledger/data logic from the prototype
+├── gemma_ai.py              # Earlier Gemma extraction prototype
+├── test_ledger.py           # Ledger tests for the prototype
+├── test_gemma_ai.py         # AI extraction tests for the prototype
+├── requirements.txt         # Root/prototype dependencies
+├── .gitignore
+├── LICENSE
+└── README.md
+```
+
+The root-level prototype modules are retained for reference. The current web API entry point is backend/main.py.
+
+## Quick start
+
+### 1. Prerequisites
+
+Install:
+
+- Python 3.10 or newer
+- Git
+- FFmpeg
+- Enough memory and disk space for the selected Gemma model and its dependencies
+
+On macOS, install FFmpeg with Homebrew if needed:
 
 ```bash
-python -m venv .venv
+brew install ffmpeg
+```
+
+### 2. Clone the repository
+
+```bash
+git clone https://github.com/nishantekka2007-sys/voicekhata-hackday.git
+cd voicekhata-hackday
+```
+
+To use the current Gemma voice-entry work before it is merged into main:
+
+```bash
+git switch feat/gemma4-voice-entry
+```
+
+### 3. Create a virtual environment and install dependencies
+
+Run these commands from the repository root:
+
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -r backend/requirements.txt
-export GOOGLE_CLIENT_ID="your-google-web-client-id.apps.googleusercontent.com"
-export VOICEKHATA_DB_PATH="$PWD/backend/voicekhata.db"
-export VOICEKHATA_CORS_ORIGINS="http://localhost:5500,http://127.0.0.1:5500"
-uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Backend health: http://127.0.0.1:8000/api/health  
-Interactive API docs: http://127.0.0.1:8000/docs
+### 4. Configure Google sign-in
 
-### 2. Start the frontend
+Google sign-in is optional for starting the server, but authenticated ledger endpoints require a configured Google Web OAuth client.
 
-In a second terminal:
+1. In Google Cloud Console, configure the OAuth consent screen.
+2. Create an OAuth client ID of type **Web application**.
+3. Add http://localhost:5500 and http://127.0.0.1:5500 as authorized JavaScript origins for local development.
+4. Set the client ID in your terminal:
 
 ```bash
-cd frontend
-python3 -m http.server 5500
+export GOOGLE_CLIENT_ID="YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com"
+export VOICEKHATA_CORS_ORIGINS="http://localhost:5500,http://127.0.0.1:5500"
 ```
 
-Open http://localhost:5500.
+Do not commit real credentials or put secrets in frontend code. The application verifies Google ID tokens; it should never ask users for their Google password.
 
-## Google sign-in setup
+### 5. Start the backend
 
-In Google Cloud Console, configure the OAuth consent screen and create a **Web application** OAuth client ID. Add `http://localhost:5500` as an authorized JavaScript origin. Set `GOOGLE_CLIENT_ID` in the backend environment. For deployment, use HTTPS and configure the real frontend origin in `VOICEKHATA_CORS_ORIGINS`.
+From the repository root, with the virtual environment activated:
 
-## API endpoints
+```bash
+uvicorn main:app --reload --app-dir backend --host 127.0.0.1 --port 8000
+```
+
+Keep this terminal open. Verify the API health endpoint at http://127.0.0.1:8000/api/health and open the interactive API docs at http://127.0.0.1:8000/docs.
+
+If port 8000 is already in use, check the process before stopping it:
+
+```bash
+lsof -nP -iTCP:8000 -sTCP:LISTEN
+```
+
+### 6. Start the frontend
+
+Open a second terminal in the repository root:
+
+```bash
+python3 -m http.server 5500 --directory frontend
+```
+
+Then open http://localhost:5500 in your browser.
+
+### 7. First voice-transcription request
+
+The first transcription request may take time because the configured model and model dependencies may need to load. Ensure the machine has sufficient memory and internet access for model downloads. The endpoint converts uploaded audio to mono 16 kHz WAV with FFmpeg before sending it to the model.
+
+The voice endpoint is:
+
+```text
+POST /api/voice/transcribe
+```
+
+It accepts an audio file and an optional language field. It returns recognized text and does **not** save a transaction. Always check the transcript and transaction fields before saving.
+
+## Data and privacy notes
+
+- SQLite data is stored locally by default at backend/voicekhata.db.
+- Set VOICEKHATA_DB_PATH to choose another database path.
+- Database files and environment files should stay out of Git.
+- When Google OAuth is enabled, ledger routes require a valid Google ID token and filter transactions by the authenticated user.
+- Do not use real customer or financial data in a public demo without appropriate security, access controls, backups, and privacy review.
+
+## API overview
 
 | Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/health` | API and database health |
-| GET | `/api/auth/config` | Login configuration |
-| POST | `/api/auth/google` | Verify Google credential |
-| GET | `/api/auth/me` | Current account |
-| GET | `/api/transactions` | List signed-in user's transactions |
-| POST | `/api/transactions` | Save a transaction |
-| POST | `/api/transactions/parse` | Prepare an editable transaction draft |
-| GET | `/api/summary` | Ledger totals and customer balances |
+| --- | --- | --- |
+| GET | /api/health | Health and service information |
+| GET | /api/auth/config | Frontend authentication configuration |
+| POST | /api/auth/google | Verify Google sign-in credential |
+| GET | /api/auth/me | Current signed-in profile |
+| GET | /api/transactions | List the signed-in user's transactions |
+| POST | /api/transactions | Save a reviewed transaction |
+| POST | /api/transactions/parse | Return a transaction draft from text |
+| POST | /api/voice/transcribe | Transcribe uploaded audio; does not save a transaction |
+| GET | /api/summary | Ledger totals and daily summary |
 
-All ledger endpoints require Google authentication. Parsing returns a draft only; saving requires explicit confirmation.
+See the automatically generated API docs at http://127.0.0.1:8000/docs while the backend is running.
 
-## Test
+## Run tests
+
+With the virtual environment activated:
 
 ```bash
-python -m pip install -r backend/requirements.txt
 pytest -q backend/tests
-node --check frontend/app.js
-node --check frontend/auth.js
 ```
+
+The repository also contains prototype tests at the root:
+
+```bash
+python -m pytest -q test_ledger.py test_gemma_ai.py
+```
+
+Run the tests relevant to the code you change and include the results in your pull request. Tests passing does not by itself verify live Google OAuth or model transcription.
 
 ## Contributing
 
-1. Create a feature branch.
-2. Keep balance calculations deterministic and preserve the confirmation-before-save workflow.
-3. Run the tests and syntax checks.
-4. Open a pull request describing the change and how it was tested.
+We welcome contributions from the hackathon team and other contributors.
+
+1. Create a branch for your change: feat/short-description or fix/short-description.
+2. Keep changes focused and avoid committing local databases, credentials, virtual environments, or model files.
+3. Run relevant tests and basic syntax checks.
+4. Open a pull request to main, describe the change, and include screenshots or test output where useful.
+5. Ask for review before merging.
+
+See CONTRIBUTING.md for the collaboration workflow.
+
+## Known limitations
+
+- This is a hackathon MVP, not a production-ready accounting or financial service.
+- The live website has not been confirmed as deployed.
+- Gemma model availability, compatibility, memory use, and transcription quality depend on the runtime environment; test before presenting.
+- Google OAuth must be configured separately for authenticated ledger features.
+- Review AI-generated transcripts and transaction fields before saving.
+- Production deployment requires HTTPS, correct CORS configuration, security/session review, monitoring, and database backup/restore procedures.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+This project is licensed under the MIT License. See LICENSE.
