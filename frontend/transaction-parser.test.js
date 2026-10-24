@@ -1,0 +1,17 @@
+const assert = require("node:assert/strict");
+const {parse, toAsciiDigits, extractAmount, detectKind, isMultiple} = require("./transaction-parser.js");
+assert.equal(toAsciiDigits("₹५००"), "₹500");
+assert.equal(parse("Ramesh ne 500 rupaye wapas diye").kind, "payment_received");
+assert.equal(parse("Ramesh ko 200 rupaye udhaar diye").kind, "credit_sale");
+assert.equal(parse("रमेश ने ५०० रुपये वापस दिए").amount, 500);
+assert.equal(parse("रमेश ने ५०० रुपये वापस दिए").kind, "payment_received");
+assert.equal(parse("रमेश को २०० रुपये उधार दिए").kind, "credit_sale");
+assert.equal(parse("रमेश को २०० रुपये उधार दिए").customer, "रमेश");
+assert.equal(parse("Suresh ko 300 rupaye udhaar diye").amount, 300);
+assert.equal(parse("Anita paid 500 rupees").kind, "payment_received");
+assert.equal(parse("Ramesh ne 500 diye aur Suresh ko 200 udhaar diya").error.includes("Multiple"), true);
+assert.equal(parse("Ramesh ko 2 kilo chawal udhaar diya").missing_fields.includes("amount"), true);
+assert.equal(parse("Ramesh ko ₹0 udhaar").missing_fields.includes("amount"), true);
+assert.equal(parse("").error, "Please speak or type a transaction.");
+assert.equal(parse("Amit ne २०० रुपये जमा किये").kind, "payment_received");
+console.log("VoiceKhata multilingual parser tests passed.");
