@@ -993,15 +993,9 @@ const TXNS_KEY = "vk.txns.v1";
 const $ = id => document.getElementById(id);
 
 // ── Data ──────────────────────────────────────────────────
-const DEMO_TRANSACTIONS = [
-  {id:"d1",customer:"Ramesh Kumar",kind:"credit_sale",amount:800,note:"Atta & Dal",created_at:new Date(Date.now()-86400000*2).toISOString()},
-  {id:"d2",customer:"Ramesh Kumar",kind:"payment_received",amount:500,note:"Cash payment",created_at:new Date(Date.now()-86400000).toISOString()},
-  {id:"d3",customer:"Anita Devi",kind:"credit_sale",amount:1250,note:"Cooking Oil & Masala",created_at:new Date(Date.now()-3600000*5).toISOString()},
-  {id:"d4",customer:"Suresh",kind:"credit_sale",amount:200,note:"Chawal (Rice)",created_at:new Date(Date.now()-3600000*3).toISOString()},
-  {id:"d5",customer:"Mukesh Kumar",kind:"credit_sale",amount:750,note:"Dairy & Milk",created_at:new Date(Date.now()-3600000*2).toISOString()},
-  {id:"d6",customer:"Mukesh Kumar",kind:"payment_received",amount:750,note:"UPI payment",created_at:new Date(Date.now()-3600000).toISOString()},
-  {id:"d7",customer:"Meena",kind:"credit_sale",amount:350,note:"Monthly grocery",created_at:new Date().toISOString()},
-];
+// Start every new local workspace with an empty ledger. Never seed real-looking
+// customer names or balances into a visitor's account.
+
 
 let transactions = [];
 let demoMode = false;
@@ -1183,10 +1177,8 @@ function initApp() {
 
   // Load data
   transactions = loadTransactions();
-  demoMode = transactions.length === 0;
-  if(demoMode) { transactions = [...DEMO_TRANSACTIONS]; }
-
-  $("demoBanner").style.display = demoMode ? "" : "none";
+  demoMode = false;
+  $("demoBanner").style.display = "none";
   initSpeech();
   navigate("dashboard");
   if (window.VoiceKhataCloud?.signedIn()) window.VoiceKhataCloud.loadLedger().catch(error => showToast("Could not load synced ledger: " + error.message));
