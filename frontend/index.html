@@ -432,10 +432,12 @@
             </div>
             <div class="transcript-area">
               <label for="transcriptBox">TRANSCRIBED TEXT</label>
-              <textarea id="transcriptBox" rows="3" placeholder="Your speech will appear here... or type manually."></textarea>
+              <textarea id="transcriptBox" rows="4" spellcheck="false" placeholder="Hindi speech will appear here. Correct names, numbers and transaction words before parsing."></textarea>
+              <small style="display:block;color:var(--muted);line-height:1.6;margin-top:6px">Listen to your own words, not a translation. Check customer, amount and credit/payment direction. Hindi: “रमेश को पाँच सौ रुपये उधार दिए”.</small>
             </div>
             <div class="voice-actions">
               <button class="btn-parse" onclick="parseCurrentText()">🤖 Understand Transaction</button>
+              <button class="btn-ghost" type="button" onclick="retryLastAudio()" title="Transcribe the last recorded audio again without recording anew">↻ Retry speech</button>
               <button class="btn-ghost" onclick="clearVoice()">Clear</button>
             </div>
             <div class="examples-section">
@@ -1079,11 +1081,11 @@ function initSpeech() {
   const browserSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const mode = $("speechEngine");
   if (mode) mode.value = "local";
-  $("micHint").textContent = "Select Local Whisper to transcribe Hindi on your device after its initial model download.";
+  $("micHint").textContent = "Hindi model prepares before recording. Wait for MODEL READY, then speak one clear transaction.";
   if (mode) mode.addEventListener("change", () => {
     $("micHint").textContent = mode.value === "browser"
       ? "Browser recognition may use an online service. Say one clear transaction, then tap stop."
-      : "Private on-device transcription. First use downloads a multilingual model.";
+      : "Hindi model loads before recording. On-device Whisper downloads its model on first use.";
   });
 }
 
@@ -1100,6 +1102,12 @@ function useExample(el) {
   $("transcriptBox").value = el.textContent;
   $("transcriptBox").className = "";
   showToast("Example loaded — tap 'Understand Transaction' to parse it.");
+}
+
+async function retryLastAudio() {
+  const engine = window.VoiceKhataWhisper;
+  if (!engine?.retryTranscription) { showToast("Local transcription is not ready."); return; }
+  await engine.retryTranscription();
 }
 
 function clearVoice() {
