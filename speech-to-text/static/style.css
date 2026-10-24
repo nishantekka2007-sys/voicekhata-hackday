@@ -1,0 +1,276 @@
+/* GemmaKhata - voice entry
+   Look: a painted kirana signboard (ultramarine + turmeric) over a lime-washed wall. */
+
+:root {
+  --neel: #1b3a9e;        /* signboard ultramarine */
+  --haldi: #f5b700;       /* turmeric yellow */
+  --haldi-edge: #b58800;
+  --chuna: #eef2fa;       /* blue-white lime wash */
+  --paper: #ffffff;
+  --ink: #141a2e;
+  --ink-soft: #4a5470;
+  --line: #d5dcec;
+  --tamatar: #d1361f;     /* recording red */
+  --tamatar-edge: #8f2414;
+  --tamatar-ink: #a12a16;
+  --good: #1e7b4f;
+
+  --font-display: "Baloo 2", "Trebuchet MS", "Nirmala UI", "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-body: "Mukta", "Segoe UI", "Nirmala UI", "Noto Sans Devanagari", system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--chuna);
+  color: var(--ink);
+  font: 400 17px/1.5 var(--font-body);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+/* ---------- signboard ---------- */
+
+.board {
+  padding: calc(22px + env(safe-area-inset-top)) 20px 34px;
+  background: var(--neel);
+  border-bottom: 8px solid var(--haldi);
+  color: #fff;
+}
+
+.brand-name {
+  margin: 0;
+  font: 800 36px/1 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.brand-line {
+  margin: 6px 0 0;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- language choice ---------- */
+
+.langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.lang { position: relative; }
+
+.lang input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lang span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  font-weight: 600;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.lang input:checked + span {
+  background: var(--haldi);
+  border-color: var(--haldi);
+  color: var(--ink);
+}
+
+.lang input:focus-visible + span {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.lang input:disabled { cursor: not-allowed; }
+.lang input:disabled + span { opacity: 0.55; }
+
+/* ---------- the mic ---------- */
+
+.mic-zone {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding-top: 30px;
+}
+
+.mic {
+  --level: 0;
+  display: grid;
+  place-items: center;
+  width: 124px;
+  height: 124px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--haldi);
+  color: var(--ink);
+  cursor: pointer;
+  /* second shadow is the tactile "button edge"; the first ring follows your voice */
+  box-shadow:
+    0 0 0 calc(8px + var(--level) * 30px) rgba(255, 255, 255, 0.22),
+    0 7px 0 var(--haldi-edge);
+  transition: transform 0.08s, box-shadow 0.08s, background-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mic:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    0 0 0 calc(8px + var(--level) * 30px) rgba(255, 255, 255, 0.22),
+    0 3px 0 var(--haldi-edge);
+}
+
+.mic:focus-visible {
+  outline: 4px solid #fff;
+  outline-offset: 10px;
+}
+
+.mic .icon { width: 56px; height: 56px; }
+.mic .icon-stop,
+.mic .icon-wait { display: none; }
+
+.mic.is-recording {
+  background: var(--tamatar);
+  color: #fff;
+  box-shadow:
+    0 0 0 calc(8px + var(--level) * 30px) rgba(255, 255, 255, 0.28),
+    0 7px 0 var(--tamatar-edge);
+}
+.mic.is-recording .icon-mic { display: none; }
+.mic.is-recording .icon-stop { display: block; }
+
+.mic.is-busy { cursor: progress; }
+.mic.is-busy .icon-mic { display: none; }
+.mic.is-busy .icon-wait {
+  display: block;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.timer {
+  margin: 18px 0 0;
+  font: 700 22px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  visibility: hidden;
+}
+.timer.is-live { visibility: visible; }
+
+.status {
+  min-height: 3.1em;
+  max-width: 32ch;
+  margin: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.status[data-tone="error"] {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--tamatar-ink);
+}
+
+.status[data-tone="ok"] { color: var(--haldi); }
+
+/* ---------- transcript sheet ---------- */
+
+.sheet {
+  flex: 1;
+  padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
+}
+
+.sheet-title {
+  display: block;
+  font: 700 22px/1.2 var(--font-display);
+}
+
+#transcript {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 19px/1.55 var(--font-body);
+  resize: vertical;
+}
+
+#transcript::placeholder { color: #6b7490; }
+
+#transcript:focus {
+  border-color: var(--neel);
+  outline: 3px solid rgba(27, 58, 158, 0.25);
+}
+
+.meta {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn {
+  min-height: 48px;
+  padding: 0 20px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 16px/1 var(--font-body);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) { background: var(--chuna); }
+.btn:focus-visible { outline: 3px solid var(--neel); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tip {
+  margin: 26px 0 0;
+  padding-left: 12px;
+  border-left: 4px solid var(--haldi);
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic,
+  .lang span { transition: none; }
+  .mic.is-busy .icon-wait { animation: none; }
+}
