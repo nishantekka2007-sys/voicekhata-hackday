@@ -38,7 +38,7 @@ function dateTime(value){const d=new Date(value);return Number.isNaN(d.getTime()
 function initials(name){return String(name||"?").trim().split(/\s+/).slice(0,2).map(word=>word[0]||"").join("").toUpperCase();}
 function kindClass(kind){return kind==="credit_sale"?"type-credit":kind==="payment_received"?"type-payment":"type-expense";}
 function amountText(item){const sign=item.kind==="credit_sale"?"+":item.kind==="payment_received"?"−":"−";return sign+rupees(item.amount);}
-function transactionRow(item,index){return `<tr><td><div class="person-cell"><span class="person-avatar tone-${index%4}">${esc(initials(item.customer))}</span><span class="person-details"><strong>${esc(item.customer)}</strong><small>${esc(item.note||"No note added")}</small></span></div></td><td><span class="type-pill ${kindClass(item.kind)}">${esc(kindLabels[item.kind]||item.kind)}</span></td><td>${esc(dateTime(item.created_at))}</td><td class="amount-cell ${item.kind!=="payment_received"?"outgoing":""}">${esc(amountText(item))}</td><td><span class="status-pill">✓ Saved</span></td></tr>`;}
+function transactionRow(item,index){return `<tr><td><div class="person-cell"><span class="person-avatar tone-${index%4}">${esc(initials(item.customer))}</span><span class="person-details"><strong>${esc(item.customer)}</strong><small>${esc([item.product,item.note].filter(Boolean).join(" · ")||"No note added")}</small></span></div></td><td><span class="type-pill ${kindClass(item.kind)}">${esc(kindLabels[item.kind]||item.kind)}</span></td><td>${esc(dateTime(item.created_at))}</td><td class="amount-cell ${item.kind!=="payment_received"?"outgoing":""}">${esc(amountText(item))}</td><td><span class="status-pill">✓ Saved</span></td></tr>`;}
 function renderTransactions(){
   const recent=[...transactions].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   $("recentRows").innerHTML=recent.slice(0,5).map(transactionRow).join("")||'<tr><td colspan="5">No transactions yet.</td></tr>';
@@ -51,7 +51,7 @@ function balancesByCustomer(){
   const balances={};
   for(const item of transactions){
     if(item.kind==="cash_expense")continue;
-    balances[item.customer]=(balances[item.customer]||0)+(item.kind==="credit_sale"?Number(item.amount):-Number(item.amount));
+    balances[item.customer]=(balances[item.customer]||0)+(item.kind==="credit_sale"?Number(item.left_amount??item.amount):-Number(item.amount));
   }
   return Object.entries(balances).map(([customer,balance])=>({customer,balance})).sort((a,b)=>a.customer.localeCompare(b.customer));
 }
