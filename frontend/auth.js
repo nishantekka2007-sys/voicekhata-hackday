@@ -133,7 +133,19 @@
       }
     };
     if (window.google?.accounts?.id) startGoogle();
-    else window.addEventListener("load", startGoogle, { once: true });
+    else {
+      let attempts = 0;
+      const timer = window.setInterval(() => {
+        attempts += 1;
+        if (window.google?.accounts?.id) {
+          window.clearInterval(timer);
+          startGoogle();
+        } else if (attempts >= 40) {
+          window.clearInterval(timer);
+          showAuthError("Google sign-in script did not load. Check your internet connection.");
+        }
+      }, 250);
+    }
   }
 
   function signOut() {
