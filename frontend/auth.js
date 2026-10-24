@@ -1,6 +1,11 @@
 /* Google Identity Services sign-in + authenticated API wrapper for VoiceKhata. */
 (() => {
-  const API_BASE = window.VOICEKHATA_API_BASE || "http://127.0.0.1:8000/api";
+  // Set window.VOICEKHATA_API_BASE before this script when the API is hosted separately.
+const API_BASE = window.VOICEKHATA_API_BASE || (
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://127.0.0.1:8000/api"
+    : window.location.origin.replace(/\/$/, "") + "/api"
+);
   const TOKEN_KEY = "voicekhata.google_id_token";
   const PROFILE_KEY = "voicekhata.profile";
   let config = { google_client_id: "", google_login_enabled: false };
