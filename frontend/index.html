@@ -439,6 +439,54 @@
     @media(max-width:520px){.content{padding:12px}.page-head{padding:18px;min-height:128px}.page-head h1{font-size:27px}.metric-grid{gap:10px}.metric-card{padding:15px}.voice-card,.review-card,.panel{padding:17px}#view-dashboard .page-head,#view-voice .page-head{background-image:linear-gradient(90deg,rgba(247,252,248,.95),rgba(247,252,248,.78)),url('https://images.unsplash.com/photo-1604719312566-8912e9c8a9e7?auto=format&fit=crop&w=900&q=85')!important;background-size:cover!important}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
+  
+    /* VoiceKhata visual refresh: brighter, editorial, photo-led while keeping all existing controls */
+    :root{--green:#07865b;--green-2:#066b4a;--mint:#e0f8eb;--ink:#132c27;--muted:#71847d;--line:#dfece5;--canvas:#f2f8f4;--shadow:0 12px 34px rgba(16,70,48,.09)}
+    body{background:radial-gradient(ellipse at 72% 0%,#fff8e8 0,transparent 27%),linear-gradient(135deg,#f5faf6 0%,#eff8f3 55%,#f8f7ff 100%);color:var(--ink)}
+    .sidebar{background:linear-gradient(180deg,#f7fcf8 0%,#eaf7ef 62%,#f5fbf7 100%);border-right:1px solid #d8ebe0}
+    .brand-mark{background:linear-gradient(145deg,#16b979,#075c42);box-shadow:0 7px 16px #07865b32;border-radius:14px}
+    .brand-copy strong{text-transform:capitalize;letter-spacing:-1px}
+    .shop-badge{border:1px solid #dcefe3;background:linear-gradient(120deg,#fff,#f0faf4);border-radius:16px;box-shadow:0 6px 20px #1c65400c}
+    .shop-av{background:linear-gradient(140deg,#f9bc53,#f58a36);color:#fff;box-shadow:0 5px 12px #f4a43d35}
+    .nav-btn{border-radius:13px;margin:3px 0;transition:transform .18s,background .18s,box-shadow .18s}
+    .nav-btn:hover{background:#fff;transform:translateX(3px);box-shadow:0 5px 15px #1b65400d}
+    .nav-btn.active{background:linear-gradient(110deg,#9ae9bd,#52cf91);color:#075b3f;box-shadow:0 7px 18px #36b97825;font-weight:800}
+    .topbar{background:rgba(255,255,255,.88);backdrop-filter:blur(16px);border-bottom:1px solid #e1ece5}
+    .page-head{position:relative;isolation:isolate;min-height:185px;border-radius:25px!important;padding:32px!important;border:1px solid #e4ede6!important;box-shadow:0 15px 38px #164b3410!important}
+    .page-head>*{position:relative;z-index:1}
+    #view-dashboard .page-head{background-image:linear-gradient(90deg,#fffdf8 0%,rgba(255,253,248,.97) 30%,rgba(255,253,248,.70) 51%,rgba(255,253,248,.05) 100%),url('https://images.unsplash.com/photo-1604719312566-8912e9c8a9e7?auto=format&fit=crop&w=1500&q=90')!important;background-size:cover!important;background-position:center 47%!important}
+    #view-voice .page-head{background-image:linear-gradient(90deg,#f4fff8 0%,rgba(244,255,248,.96) 31%,rgba(244,255,248,.63) 54%,rgba(244,255,248,.04) 100%),url('https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1500&q=90')!important;background-size:cover!important;background-position:center 48%!important}
+    #view-ledger .page-head{background:linear-gradient(115deg,#e1f8ed,#fff 56%,#e8f0ff)!important}
+    #view-customers .page-head{background:linear-gradient(115deg,#fff1d9,#fff 54%,#f3eaff)!important}
+    #view-due-payments .page-head{background:linear-gradient(115deg,#ffe8e3,#fff 55%,#fff2d7)!important}
+    .page-head h1{font-size:clamp(31px,3vw,43px);line-height:1.1;letter-spacing:-1.8px}
+    .eyebrow{font-weight:800}
+    .metric-grid{gap:17px}
+    .metric-card{border-radius:20px!important;background:linear-gradient(145deg,#fff 0%,#fbfffc 100%)!important;box-shadow:0 10px 26px #1454370b!important;transition:transform .2s,box-shadow .2s}
+    .metric-card:hover{transform:translateY(-4px);box-shadow:0 17px 32px #14543718!important}
+    .metric-card:nth-child(1){background:linear-gradient(140deg,#fff,#e8fbef)!important}
+    .metric-card:nth-child(2){background:linear-gradient(140deg,#fff,#e8f5ff)!important}
+    .metric-card:nth-child(3){background:linear-gradient(140deg,#fff,#fff4df)!important}
+    .metric-card:nth-child(4){background:linear-gradient(140deg,#fff,#f1edff)!important}
+    .metric-card:after{width:125px;height:125px;right:-40px;top:-48px;opacity:.65}
+    .metric-value{font-weight:800}
+    .panel,.voice-card,.review-card,.customer-card{border-radius:20px!important;border-color:#dfebe4!important;box-shadow:0 12px 30px #164b340c!important}
+    .panel{background:linear-gradient(155deg,#fff 0%,#fcfffd 100%)}
+    .panel-head{margin-bottom:16px}
+    .btn-primary,.btn-parse,.btn-confirm{background:linear-gradient(115deg,#10ad72,#08724f)!important;border-radius:12px!important;box-shadow:0 8px 18px #07865b2b!important;transition:transform .18s,box-shadow .18s}
+    .btn-primary:hover,.btn-parse:hover,.btn-confirm:hover{transform:translateY(-2px);box-shadow:0 12px 24px #07865b3d!important}
+    .chip{background:#e7f9ee;border:1px solid #bfe9d0;color:#08724f}
+    .mic-btn{background:linear-gradient(145deg,#27d58d,#078057)!important;box-shadow:0 13px 30px #07865b40,0 0 0 10px #e0f8eb!important}
+    .mic-btn.recording{background:linear-gradient(145deg,#ff797d,#d32f48)!important;box-shadow:0 13px 30px #d32f4840,0 0 0 10px #ffebee!important}
+    .field-wrap input:focus,.search-input:focus,.lang-select-wrap select:focus,.transcript-area textarea:focus,.review-field input:focus,.review-field select:focus{border-color:#39b981!important;box-shadow:0 0 0 4px #11a86e1a!important}
+    .new-pill{background:#ffcb69;color:#693c00;border-radius:999px}
+    .sidebar-foot{border-top:1px solid #d8ebe0}
+    .profile-row{border-radius:13px;background:#ffffffad;padding:10px}
+    .toast{background:linear-gradient(110deg,#07583e,#0c8a5c)!important;box-shadow:0 12px 30px #064c3538}
+    .demo-banner{background:linear-gradient(100deg,#fff3d9,#fffaf0)!important;border:1px solid #f4dfb4!important}
+    @media(max-width:800px){.page-head{min-height:155px!important;padding:23px!important}#view-dashboard .page-head,#view-voice .page-head{background-position:62% center!important}}
+    @media(max-width:520px){.page-head{min-height:135px!important;padding:18px!important}#view-dashboard .page-head,#view-voice .page-head{background-image:linear-gradient(90deg,rgba(255,253,248,.96),rgba(255,253,248,.76)),url('https://images.unsplash.com/photo-1604719312566-8912e9c8a9e7?auto=format&fit=crop&w=900&q=85')!important;background-size:cover!important}}
+
   </style>
 </head>
 <body>
