@@ -1,5 +1,9 @@
-/* VoiceKhata frontend. Configure API_BASE to match the backend team's FastAPI host. */
+/* VoiceKhata frontend. Authenticated requests use Google Identity Services. */
 const API_BASE = window.VOICEKHATA_API_BASE || "http://127.0.0.1:8000/api";
+const authRequest = (path, options={}) => {
+  if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before accessing your ledger.");
+  return window.VoiceKhataAuth.request(path, options);
+};
 const DEMO_TRANSACTIONS = [
   {id:1,customer:"Ramesh Kumar",note:"2 kg basmati rice",kind:"credit_sale",amount:500,created_at:new Date(Date.now()-1000*60*24).toISOString()},
   {id:2,customer:"Anita Devi",note:"Part payment",kind:"payment_received",amount:1200,created_at:new Date(Date.now()-1000*60*87).toISOString()},
@@ -57,6 +61,9 @@ function updateMetrics(){
   $("collectedToday").textContent=rupees(collected);
   $("creditToday").textContent=rupees(credit);
   $("activeCustomers").textContent=String(balances.length);
+  const title=document.querySelector("#view-dashboard .page-heading h1");
+  const user=window.VoiceKhataAuth?.profile();
+  if(title) title.innerHTML="Welcome"+(user?.name ? ", "+esc(user.name.split(" ")[0]) : " to VoiceKhata")+' <span class="wave">✳</span>';
 }
 function renderChart(){
   const canvas=$("moneyChart");if(!canvas||!window.Chart)return;
@@ -77,6 +84,7 @@ function navigate(view){
   window.scrollTo({top:0,behavior:"smooth"});
 }
 async function apiRequest(path,options={}){
+  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
   const response=await fetch(API_BASE+path,{...options,headers:{"Accept":"application/json",...(options.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(options.headers||{})}});
   if(!response.ok)throw new Error("API request failed ("+response.status+")");
   return response.status===204?null:response.json();
@@ -85,18 +93,30 @@ function normalizeTransaction(raw){
   return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),created_at:raw.created_at??new Date().toISOString()};
 }
 async function loadFromBackend(){
+  if (!window.VoiceKhataAuth?.isSignedIn()) {
+    transactions=[];
+    demoMode=true;
+    renderAll();
+    const banner=$("modeBanner");
+    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Sign in required</strong> — use Google sign-in to load your private ledger. No sample transactions are shown.</span>';
+    return;
+  }
   try{
-    const data=await apiRequest("/transactions");
+    const data=await authRequest("/transactions");
     const rows=Array.isArray(data)?data:(data.transactions||data.items||[]);
     transactions=rows.map(normalizeTransaction);
     demoMode=false;
-    $("modeBanner").innerHTML='<span class="status-dot" style="background:#419467"></span><span><strong>Connected to backend</strong> — live ledger data is loaded from your API.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button>';
-    $("bannerDismiss").addEventListener("click",()=>$("modeBanner").remove());
+    const banner=$("modeBanner");
+    if(banner){
+      banner.innerHTML='<span class="status-dot" style="background:#419467"></span><span><strong>Connected securely</strong> — this is your private ledger.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button>';
+      $("bannerDismiss").addEventListener("click",()=>$("modeBanner").remove());
+    }
     renderAll();
   }catch(error){
-    // Keep the UI usable while the team builds FastAPI. Do not silently claim data was saved.
+    transactions=[];
     demoMode=true;
-    console.info("VoiceKhata API is not connected yet; showing sample preview.",error.message);
+    renderAll();
+    showToast(error.message || "Could not load your ledger.");
   }
 }
 function parseSimpleText(text){
@@ -117,11 +137,12 @@ async function understandTransaction(){
   $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
   let parsed;
   try{
-    parsed=await apiRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language:$("languageSelect").value})});
+    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before creating a transaction.");
+    parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language:$("languageSelect").value})});
     parsed=normalizeTransaction(parsed);
   }catch(error){
     parsed=parseSimpleText(text);
-    showToast("Backend parser isn't connected yet. Please carefully review the suggested details.");
+    showToast(error.message || "Could not parse this entry. Carefully review the draft.");
   }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
@@ -137,16 +158,15 @@ async function saveTransaction(event){
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
   const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
-    const saved=await apiRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
-    transactions.unshift(normalizeTransaction(saved||{...item,id:Date.now(),created_at:new Date().toISOString()}));
+    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before saving a transaction.");
+    const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
+    transactions.unshift(normalizeTransaction(saved));
     demoMode=false;
-    showToast("Transaction saved to your ledger.");
+    showToast("Transaction saved to your private ledger.");
   }catch(error){
-    if(!demoMode){
-      button.disabled=false;showToast("Could not save to the backend. Check your connection and try again.");return;
-    }
-    transactions.unshift(normalizeTransaction({...item,id:Date.now(),created_at:new Date().toISOString()}));
-    showToast("Preview only: transaction added to this browser session, not saved to the server.");
+    button.disabled=false;
+    showToast(error.message || "Could not save. Check your connection and try again.");
+    return;
   }
   button.disabled=false;$("transcriptInput").value="";$("confirmCheck").checked=false;
   $("reviewForm").classList.add("hidden");$("emptyReview").classList.remove("hidden");
@@ -166,7 +186,8 @@ async function startRecording(){
       const blob=new Blob(recordedChunks,{type:mediaRecorder.mimeType||"audio/webm"});
       const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");form.append("language",$("languageSelect").value);
       try{
-        const result=await apiRequest("/voice/transcribe",{method:"POST",body:form});
+        if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before using voice entry.");
+        const result=await authRequest("/voice/transcribe",{method:"POST",body:form});
         $("transcriptInput").value=result.text||result.transcript||"";
         $("recordHint").textContent="Transcription ready — review the text below";
         showToast("Audio transcribed. Now review the transaction details.");
@@ -200,4 +221,10 @@ $("helpButton").addEventListener("click",()=>$("helpModal").classList.remove("hi
 $("closeHelp").addEventListener("click",()=>$("helpModal").classList.add("hidden"));
 $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal"))$("helpModal").classList.add("hidden");});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
-setDates();renderAll();loadFromBackend();
+setDates();
+if(!window.VoiceKhataAuth?.isSignedIn()){transactions=[];demoMode=true;}
+renderAll();
+document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());
+document.addEventListener("voicekhata:signed-out",()=>{transactions=[];demoMode=true;renderAll();});
+document.addEventListener("voicekhata:auth-required",()=>{transactions=[];demoMode=true;renderAll();showToast("Your session needs Google sign-in again.");});
+window.VoiceKhata={loadFromBackend,renderAll};
