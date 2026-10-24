@@ -16,7 +16,7 @@ assert.match(portal, /addEventListener\("submit", create\)/);
 assert.match(portal, /addEventListener\("submit", unlock\)/);
 assert.match(portal, /localStorage\.getItem\(SHOP_KEY\)/);
 assert.match(speech, /WHISPER_HINDI_MODEL = "onnx-community\/whisper-base"/);
-assert.match(speech, /return transformers\.pipeline\("automatic-speech-recognition", WHISPER_MODEL/);
+assert.match(speech, /transformers\.pipeline\("automatic-speech-recognition", WHISPER_MODEL/);
 assert.match(speech, /dtype:"q8"/);
 assert.match(speech, /getElement\("speechEngine"\)\?\.value \|\| "local"/);
 assert.doesNotMatch(html, /function boot\(\)/);
