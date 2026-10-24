@@ -242,25 +242,31 @@
 ═══════════════════════════════════════════════════════════ -->
 <div id="onboarding">
   <div class="ob-card">
-    <a class="brand" href="#" onclick="return false">
-      <span class="brand-mark">vk</span>
-      <span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span>
-    </a>
-    <p class="eyebrow">A SIMPLE DIGITAL KHATA</p>
-    <h1 class="ob-h1">Let's set up your shop.</h1>
-    <p class="ob-sub">Start with your name and shop name. Your ledger will be ready in a moment.</p>
-    <form id="setupForm">
-      <div class="field-wrap">
-        <label class="field-label" for="setupOwner">Your name</label>
-        <input id="setupOwner" required maxlength="80" placeholder="e.g. Nishant Ekka" autocomplete="name">
-      </div>
-      <div class="field-wrap">
-        <label class="field-label" for="setupShop">Shop name</label>
-        <input id="setupShop" required maxlength="100" placeholder="e.g. Ekka General Store">
-      </div>
-      <button class="btn-primary" type="submit">Get started →</button>
+    <a class="brand" href="#" onclick="return false"><span class="brand-mark">vk</span><span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span></a>
+    <p class="eyebrow">WELCOME TO VOICEKHATA</p>
+    <h1 class="ob-h1" id="portalHeading">Your shop, in your words</h1>
+    <p class="ob-sub" id="portalDescription">Create a local shop workspace to record udhaar in Hindi, Marathi or English.</p>
+    <div id="portalKnownShop" class="hidden" style="margin-bottom:16px;padding:13px;border:1px solid #d8e9dd;border-radius:10px;background:#f3f9f4">
+      <strong id="portalKnownShopName">Your shop</strong>
+      <p style="font-size:12px;margin-top:4px;color:#60746a">Owner: <span id="portalKnownName"></span></p>
+    </div>
+    <form id="portalUnlockForm" class="hidden">
+      <div class="field-wrap"><label class="field-label" for="portalPin">DEVICE PIN</label><input id="portalPin" type="password" inputmode="numeric" pattern="[0-9]{6,10}" minlength="6" maxlength="10" autocomplete="off" required placeholder="Your 6–10 digit PIN"></div>
+      <button class="btn-primary" type="submit">Unlock this shop →</button>
     </form>
-    <p class="ob-note">You can use VoiceKhata without an account. Entries stay in this browser. Google login and device sync require a hosted backend.</p>
+    <form id="setupForm">
+      <div class="field-wrap"><label class="field-label" for="setupOwner">YOUR NAME</label><input id="setupOwner" required maxlength="80" placeholder="e.g. Shop owner" autocomplete="name"></div>
+      <div class="field-wrap"><label class="field-label" for="setupShop">SHOP NAME</label><input id="setupShop" required maxlength="100" placeholder="e.g. General Store"></div>
+      <div class="field-wrap"><label class="field-label" for="setupPin">CREATE DEVICE PIN (6–10 DIGITS)</label><input id="setupPin" required type="password" inputmode="numeric" pattern="[0-9]{6,10}" minlength="6" maxlength="10" autocomplete="new-password" placeholder="PIN for this browser"></div>
+      <button class="btn-primary" id="portalCreateButton" type="submit">Create local workspace →</button>
+    </form>
+    <p role="alert" id="portalError" style="font-size:12px;color:#ad3434;line-height:1.6;margin-top:12px"></p>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+      <strong style="display:block;font-size:12px;color:#254c3c;margin-bottom:6px">Google sign-in</strong>
+      <p id="portalGoogleMessage" style="font-size:11px;color:#65786d;line-height:1.6">Google login is available only when a verified HTTPS backend and OAuth are configured. The local device PIN works without a server.</p>
+      <div id="portalGoogleButton" style="margin-top:10px"></div>
+    </div>
+    <p class="ob-note">Local PIN is a convenience screen lock only, not encryption or a secure online account. Your ledger remains stored in this browser. Clearing browser data can erase it. Keep private backups.</p>
   </div>
 </div>
 
@@ -288,6 +294,7 @@
       <button class="nav-btn" data-view="due-payments" onclick="navigate('due-payments')"><span class="nav-icon">₹</span> Due Payments</button>
     </nav>
     <div class="sidebar-foot">
+      <button id="portalLogout" type="button" style="font-size:12px;text-decoration:underline;color:#236451;margin-bottom:12px">Lock workspace</button>
       <div class="profile-row">
         <span class="prof-av" id="profAvSidebar">VK</span>
         <span><strong id="profNameSidebar">Shop owner</strong><small>Shop profile</small></span>
@@ -389,10 +396,11 @@
             <div class="lang-select-wrap" style="margin-top:10px">
               <label for="speechEngine">SPEECH RECOGNITION</label>
               <select id="speechEngine" aria-label="Speech recognition engine">
-                <option value="browser">Browser speech (recommended for Hindi · may use online service)</option>
-                <option value="local">Local Whisper (private · model download required)</option>
+                <option value="local">Local Whisper · Hindi / Marathi / English (download required)</option>
+                <option value="browser">Browser speech (online service, may not work)</option>
+
               </select>
-              <small style="display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:6px">Browser speech is generally faster but may send audio to the browser provider. Local Whisper runs on your device after downloading its model.</small>
+              <small style="display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:6px">Local Whisper uses downloaded multilingual speech models, then transcribes on your device. Browser speech may use a remote service and sometimes reports network errors.</small>
             </div>
             <div class="stt-not-supported" id="sttNotSupported">
               ⚠️ <strong>Voice recognition needs Chrome or Edge.</strong><br>
@@ -656,15 +664,6 @@ $("rvExistingCustomer").addEventListener("change", updateReviewPaymentFields);
 $("rvCreditExistingCustomer").addEventListener("change", updateReviewPaymentFields);
 $("rvAmount").addEventListener("input", updateReviewPaymentFields);
 $("rvPaidNow").addEventListener("input", updateReviewPaymentFields);
-
-$("setupForm").addEventListener("submit", e => {
-  e.preventDefault();
-  const owner = $("setupOwner").value.trim();
-  const shop = $("setupShop").value.trim();
-  if(!owner || !shop) return;
-  localStorage.setItem(SHOP_KEY, JSON.stringify({ownerName: owner, shopName: shop}));
-  initApp();
-});
 
 function initApp() {
   const profile = getShopProfile();
@@ -1022,8 +1021,8 @@ function initSpeech() {
   $("micStatus").textContent = "TAP TO RECORD";
   const browserSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const mode = $("speechEngine");
-  if (!browserSpeech && mode) mode.value = "local";
-  $("micHint").textContent = browserSpeech ? "Use Browser speech for Hindi; Local Whisper is available as an alternative." : "Browser speech is unavailable here. Local Whisper needs a model download; typing always works.";
+  if (mode) mode.value = "local";
+  $("micHint").textContent = "Select Local Whisper to transcribe Hindi on your device after its initial model download.";
   if (mode) mode.addEventListener("change", () => {
     $("micHint").textContent = mode.value === "browser"
       ? "Browser recognition may use an online service. Say one clear transaction, then tap stop."
@@ -1201,18 +1200,11 @@ function recordAnother() {
   $("transcriptBox").className = "";
 }
 
-// ── Boot ──────────────────────────────────────────────────
-(function boot() {
-  const profile = getShopProfile();
-  if(profile) {
-    $("onboarding").style.display = "none";
-    initApp();
-  }
-})();
 </script>
 <script src="transaction-parser.js"></script>
 <script src="config.js"></script>
 <script src="cloud.js"></script>
+<script src="portal.js"></script>
 <script type="module" src="whisper-stt.js"></script>
 </body>
 </html>
