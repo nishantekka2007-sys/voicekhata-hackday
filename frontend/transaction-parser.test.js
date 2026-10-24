@@ -12,6 +12,6 @@ assert.equal(parse("Anita paid 500 rupees").kind, "payment_received");
 assert.equal(parse("Ramesh ne 500 diye aur Suresh ko 200 udhaar diya").error.includes("Multiple"), true);
 assert.equal(parse("Ramesh ko 2 kilo chawal udhaar diya").missing_fields.includes("amount"), true);
 assert.equal(parse("Ramesh ko ₹0 udhaar").missing_fields.includes("amount"), true);
-assert.equal(parse(""), {error:"Please speak or type a transaction."}.error);
+assert.equal(parse("").error, "Please speak or type a transaction.");
 assert.equal(parse("Amit ne २०० रुपये जमा किये").kind, "payment_received");
 console.log("VoiceKhata multilingual parser tests passed.");
