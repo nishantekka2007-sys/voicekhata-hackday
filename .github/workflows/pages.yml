@@ -40,6 +40,7 @@ jobs:
           node --check frontend/config.js
           node --check frontend/transaction-parser.js
           node frontend/transaction-parser.test.js
+          node frontend/speech-login.test.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
