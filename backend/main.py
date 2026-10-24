@@ -325,14 +325,15 @@ def get_summary(user: dict = Depends(authenticated_user)):
             (user["id"],),
         ).fetchall()
     transactions = [_public_transaction(row) for row in rows]
-    balances: dict[str, float] = {}
+    balances: dict[str, dict] = {}
     today = datetime.now(timezone.utc).date().isoformat()
     collected_today = credit_today = 0.0
     for item in transactions:
         if item["kind"] != "cash_expense":
-            balances[item["customer"]] = balances.get(item["customer"], 0.0) + (
-                item["amount"] if item["kind"] == "credit_sale" else -item["amount"]
-            )
+            key = "id:" + str(item["customer_id"]) if item.get("customer_id") is not None else "legacy:" + item["customer"].casefold()
+            if key not in balances:
+                balances[key] = {"customer": item["customer"], "customer_id": item.get("customer_id"), "balance": 0.0}
+            balances[key]["balance"] += item["amount"] if item["kind"] == "credit_sale" else -item["amount"]
         if item["created_at"].startswith(today):
             if item["kind"] == "payment_received":
                 collected_today += item["amount"]
@@ -341,13 +342,13 @@ def get_summary(user: dict = Depends(authenticated_user)):
     credit_rows = [x for x in transactions if x["kind"] == "credit_sale"]
     payment_rows = [x for x in transactions if x["kind"] == "payment_received"]
     return {
-        "total_due": round(sum(max(0.0, amount) for amount in balances.values()), 2),
+        "total_due": round(sum(max(0.0, account["balance"]) for account in balances.values()), 2),
         "collected_today": round(collected_today, 2),
         "credit_today": round(credit_today, 2),
         "active_customers": len(balances),
         "customers": [
-            {"customer": name, "balance": round(balance, 2)}
-            for name, balance in sorted(balances.items(), key=lambda entry: entry[0].casefold())
+            {"customer": account["customer"], "customer_id": account["customer_id"], "balance": round(account["balance"], 2)}
+            for account in sorted(balances.values(), key=lambda account: account["customer"].casefold())
         ],
         "daily_flow": _daily_flow(credit_rows, payment_rows),
     }
