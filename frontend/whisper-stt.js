@@ -76,7 +76,7 @@ function loadTranscriber() {
   if (!transcriberPromise) {
     modelWarmupError = null;
     transcriberPromise = (async () => {
-      showStatus("LOADING LOCAL SPEECH MODEL", "First use downloads the speech model. It will be cached by your browser.");
+      if (!recording) showStatus("LOADING LOCAL SPEECH MODEL", "First use downloads the speech model. It will be cached by your browser.");
       const transformers = await import(TRANSFORMERS_MODULE_URL);
       if (!transformers || typeof transformers.pipeline !== "function") {
         throw new Error("The local speech model library could not be loaded.");
