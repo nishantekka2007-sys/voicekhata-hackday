@@ -108,12 +108,6 @@ function navigate(view){
   $("sidebar").classList.remove("open");
   window.scrollTo({top:0,behavior:"smooth"});
 }
-async function apiRequest(path,options={}){
-  if (window.VoiceKhataAuth?.isSignedIn()) return authRequest(path, options);
-  const response=await fetch(API_BASE+path,{...options,headers:{"Accept":"application/json",...(options.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(options.headers||{})}});
-  if(!response.ok)throw new Error("API request failed ("+response.status+")");
-  return response.status===204?null:response.json();
-}
 function normalizeTransaction(raw){
   return {id:raw.id??Date.now(),customer:raw.customer??raw.customer_name??"",note:raw.note??raw.item??"",kind:raw.kind??raw.transaction_type??"credit_sale",amount:Number(raw.amount??raw.amount_rupees??0),product:raw.product??"",paid_amount:Number(raw.paid_amount??0),left_amount:Number(raw.left_amount??raw.amount??0),created_at:raw.created_at??new Date().toISOString()};
 }
