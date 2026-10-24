@@ -20,8 +20,8 @@
   }
 
   if (pages) {
-    // Intentionally empty until a real hosted HTTPS API URL is configured.
-    window.VOICEKHATA_API_BASE = "";
+    // Public HTTPS API deployed on Render.
+    window.VOICEKHATA_API_BASE = "https://voicekhata-hackday.onrender.com/api";
     return;
   }
 
