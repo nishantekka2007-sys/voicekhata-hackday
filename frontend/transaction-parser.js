@@ -19,9 +19,29 @@
   function toAsciiDigits(input) {
     return String(input || "").replace(/[०-९]/g, ch => String(DIGITS.indexOf(ch)));
   }
+  function splitTransactions(text) {
+    // "और/aur/and" often joins items inside ONE purchase, such as
+    // "रमेश को चीनी और चाय 200 रुपये उधार दिए". Do not mistake that for
+    // two transactions unless EACH clause has a separate monetary amount
+    // and a clear transaction action.
+    const clauses = String(text || "").trim().split(/\s+(?:और|आणि|aur|and|ani)\s+/iu)
+      .map(clause => clause.trim()).filter(Boolean);
+    if (clauses.length < 2) return null;
+    if (clauses.length > 5) return null;
+    if (!clauses.every(clause => {
+      const normalized = toAsciiDigits(clause);
+      return extractAmount(normalized) !== null && detectKind(normalized) !== null;
+    })) return null;
+    // Bill + partial payment is one reviewed bill, not two unrelated entries.
+    // Existing review fields keep the due balance and amount paid together.
+    if (clauses.length === 2
+      && /\b(?:total|invoice|bill)\b/iu.test(clauses[0])
+      && detectKind(clauses[1]) === "payment_received"
+      && !extractCustomer(clauses[1], "payment_received")) return null;
+    return clauses;
+  }
   function isMultiple(text) {
-    // Only split on explicit AND words, never just two item nouns or a comma.
-    return /(?:\s+(?:aur|and|ani)\s+|और|आणि)/iu.test(text);
+    return !!splitTransactions(text);
   }
   function wordAmount(text) {
     // Only consider number words directly next to an explicit currency unit.
@@ -80,10 +100,8 @@
     }
     return "";
   }
-  function parse(text) {
+  function parseSingle(text) {
     const original = String(text || "").trim();
-    if (!original) return {error: "Please speak or type a transaction."};
-    if (isMultiple(original)) return {error: "Multiple transactions found. Record them separately so no customer entry is missed."};
     const normalized = toAsciiDigits(original);
     const kind = detectKind(normalized);
     const amount = extractAmount(normalized);
@@ -102,7 +120,22 @@
         : "Check the name, direction and amount before saving."
     };
   }
-  const api = {parse, toAsciiDigits, extractAmount, detectKind, isMultiple};
+  function parse(text) {
+    const original = String(text || "").trim();
+    if (!original) return {error: "Please speak or type a transaction."};
+    const chunks = splitTransactions(original);
+    if (chunks) {
+      // Return editable drafts, NEVER save from the parser. The UI must
+      // confirm each separately, preserving the individual names and amounts.
+      return {
+        entries: chunks.map(parseSingle),
+        requires_confirmation: true,
+        review_warning: "Several transactions detected. Review and confirm each before saving."
+      };
+    }
+    return parseSingle(original);
+  }
+  const api = {parse, toAsciiDigits, extractAmount, detectKind, isMultiple, splitTransactions};
   root.VoiceKhataParser = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
