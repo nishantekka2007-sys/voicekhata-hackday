@@ -194,7 +194,7 @@ async function saveTransaction(event){
   const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
   if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and amount.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
-  const button=$("reviewForm").querySelector('button[type="submit"]);button.disabled=true;
+  const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
     if (window.VoiceKhataAuth?.isSignedIn()) {
       const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
