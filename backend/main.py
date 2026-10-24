@@ -76,6 +76,9 @@ def init_db() -> None:
             customer TEXT NOT NULL,
             kind TEXT NOT NULL CHECK(kind IN ('credit_sale','payment_received','cash_expense')),
             amount_paise INTEGER NOT NULL CHECK(amount_paise > 0),
+            product TEXT NOT NULL DEFAULT '',
+            paid_amount_paise INTEGER NOT NULL DEFAULT 0 CHECK(paid_amount_paise >= 0),
+            left_amount_paise INTEGER NOT NULL DEFAULT 0 CHECK(left_amount_paise >= 0),
             note TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL
         );
@@ -84,6 +87,14 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_transactions_user_customer
             ON transactions(user_id, customer COLLATE NOCASE);
         """)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(transactions)").fetchall()}
+        if "product" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN product TEXT NOT NULL DEFAULT ''")
+        if "paid_amount_paise" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN paid_amount_paise INTEGER NOT NULL DEFAULT 0")
+        if "left_amount_paise" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN left_amount_paise INTEGER NOT NULL DEFAULT 0")
+            conn.execute("UPDATE transactions SET left_amount_paise=amount_paise WHERE kind='credit_sale'")
 
 
 @app.on_event("startup")
@@ -103,6 +114,9 @@ class TransactionCreate(BaseModel):
     kind: Kind
     amount: float = Field(gt=0, le=100_000_000)
     note: str = Field(default="", max_length=1000)
+    product: str = Field(default="", max_length=200)
+    paid_amount: float = Field(default=0, ge=0, le=100_000_000)
+    left_amount: float | None = Field(default=None, ge=0, le=100_000_000)
 
 
 class TransactionParse(BaseModel):
@@ -170,9 +184,11 @@ def _profile(user: dict) -> dict:
 
 def _public_transaction(row: sqlite3.Row | dict) -> dict:
     item = dict(row)
-    item["amount"] = item.pop("amount_paise") / 100
+    amount_paise = item.pop("amount_paise")
+    item["amount"] = amount_paise / 100
+    item["paid_amount"] = item.pop("paid_amount_paise", 0) / 100
+    item["left_amount"] = item.pop("left_amount_paise", amount_paise if item.get("kind") == "credit_sale" else 0) / 100
     return item
-
 
 @app.get("/api/health")
 def health():
@@ -281,13 +297,17 @@ def create_transaction(body: TransactionCreate, user: dict = Depends(authenticat
     if not customer:
         raise HTTPException(status_code=422, detail="Customer name is required.")
     amount_paise = round(body.amount * 100)
+    paid_paise = round(body.paid_amount * 100)
+    left_paise = round((body.left_amount if body.left_amount is not None else body.amount - body.paid_amount) * 100)
     if amount_paise <= 0:
-        raise HTTPException(status_code=422, detail="Amount must be at least ₹0.01.")
+        raise HTTPException(status_code=422, detail="Due amount must be greater than zero.")
+    if paid_paise > amount_paise or left_paise < 0 or paid_paise + left_paise != amount_paise:
+        raise HTTPException(status_code=422, detail="Paid amount plus left amount must equal due amount.")
     with db() as conn:
         cursor = conn.execute(
-            """INSERT INTO transactions (user_id, customer, kind, amount_paise, note, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user["id"], customer, body.kind, amount_paise, body.note.strip(), utc_now()),
+            """INSERT INTO transactions (user_id, customer, kind, amount_paise, product, paid_amount_paise, left_amount_paise, note, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user["id"], customer, body.kind, amount_paise, body.product.strip(), paid_paise, left_paise, body.note.strip(), utc_now()),
         )
         row = conn.execute("SELECT * FROM transactions WHERE id=?", (cursor.lastrowid,)).fetchone()
     return _public_transaction(row)
@@ -307,13 +327,14 @@ def get_summary(user: dict = Depends(authenticated_user)):
     for item in transactions:
         if item["kind"] != "cash_expense":
             balances[item["customer"]] = balances.get(item["customer"], 0.0) + (
-                item["amount"] if item["kind"] == "credit_sale" else -item["amount"]
+                item.get("left_amount", item["amount"]) if item["kind"] == "credit_sale" else -item["amount"]
             )
         if item["created_at"].startswith(today):
             if item["kind"] == "payment_received":
                 collected_today += item["amount"]
             elif item["kind"] == "credit_sale":
                 credit_today += item["amount"]
+                collected_today += item.get("paid_amount", 0.0)
     credit_rows = [x for x in transactions if x["kind"] == "credit_sale"]
     payment_rows = [x for x in transactions if x["kind"] == "payment_received"]
     return {
