@@ -442,7 +442,7 @@
                 <div class="review-field" id="rvCustomerNameWrap"><label for="rvCustomer">CUSTOMER NAME</label><input id="rvCustomer" placeholder="e.g. Ram"></div>
 <div class="review-field" id="rvCreditExistingWrap" style="display:none"><label for="rvCreditExistingCustomer">EXISTING CUSTOMER? (OPTIONAL)</label><select id="rvCreditExistingCustomer"><option value="">Create a new customer account</option></select><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Select an existing account to keep all their bills together. No ID needs to be remembered.</small></div>
 <div class="review-field" id="rvCustomerIdentityWrap"><label for="rvCustomerIdentity">IDENTIFY THIS CUSTOMER (NEW ACCOUNT)</label><input id="rvCustomerIdentity" placeholder="e.g. phone number / village / house"><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">This detail helps distinguish people with the same name.</small></div>
-<div class="review-field" id="rvExistingCustomerWrap" style="display:none"><label for="rvExistingCustomer">PAYMENT FROM WHICH CUSTOMER?</label><select id="rvExistingCustomer"><option value="">Choose the exact customer</option></select><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Choose the existing customer; do not type only a name.</small></div>
+<div class="review-field" id="rvExistingCustomerWrap" style="display:none"><label for="rvPaymentCustomerId">1. ENTER CUSTOMER ID FIRST</label><input id="rvPaymentCustomerId" placeholder="e.g. CUS-000001" autocomplete="off"><small id="rvPaymentCustomerMatch" style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Enter the customer's unique ID to load their name and due.</small><label for="rvExistingCustomer" style="margin-top:10px">2. CONFIRM CUSTOMER NAME AND DETAILS</label><select id="rvExistingCustomer"><option value="">Enter customer ID first</option></select></div>
                 <div class="review-field">
                   <label for="rvKind">TRANSACTION TYPE</label>
                   <select id="rvKind">
@@ -480,7 +480,7 @@
           <div class="panel">
             <div class="panel-head"><h2>Receive a due payment</h2></div>
             <div class="review-fields" style="display:grid;gap:14px">
-              <div class="review-field"><label for="dueCustomerSelect">SELECT CUSTOMER ACCOUNT</label><select id="dueCustomerSelect" class="search-input" style="width:100%;min-height:42px"><option value="">Choose customer with outstanding due</option></select><small style="display:block;color:var(--muted);font-size:11px;margin-top:5px">Customer identifiers are included to distinguish people with the same name.</small></div>
+              <div class="review-field"><label for="dueCustomerIdInput">1. CUSTOMER ID (REQUIRED FIRST)</label><input id="dueCustomerIdInput" class="search-input" placeholder="e.g. CUS-000001" autocomplete="off" style="width:100%"><small id="dueCustomerIdMatch" style="display:block;color:var(--muted);font-size:11px;margin-top:5px">Enter the unique customer ID before recording a repayment.</small><label for="dueCustomerSelect" style="display:block;margin-top:10px">2. VERIFY CUSTOMER NAME AND DETAILS</label><select id="dueCustomerSelect" class="search-input" style="width:100%;min-height:42px"><option value="">Enter customer ID first</option></select></div>
               <div id="dueCustomerBalance" style="padding:12px;border-radius:8px;background:#f3f8f4;color:#315b43">Select a customer to view their outstanding balance.</div>
               <div class="review-field"><label for="duePaymentAmount">AMOUNT RECEIVED NOW (₹)</label><input id="duePaymentAmount" class="search-input" type="number" min="0.01" step="0.01" placeholder="e.g. 500" style="width:100%"></div>
               <div class="review-field"><label for="duePaymentNote">NOTE (OPTIONAL)</label><input id="duePaymentNote" class="search-input" placeholder="e.g. Cash repayment" style="width:100%"></div>
@@ -601,11 +601,40 @@ function refreshExistingCustomerOptions() {
   const select = $("rvExistingCustomer");
   if(!select) return;
   const previous = select.value;
-  const list = customerSummaries().filter(c => c.balance > 0);
-  select.innerHTML = '<option value="">Choose the exact customer</option>' + list.map(c =>
+  const list = customerSummaries().filter(c => c.balance > 0 && c.customer_id != null);
+  select.innerHTML = '<option value="">Enter customer ID first</option>' + list.map(c =>
     '<option value="' + esc(accountOptionValue(c)) + '">' + esc(accountLabel(c)) + ' — due ' + esc(rupees(c.balance)) + '</option>'
   ).join("");
   if(list.some(c => accountOptionValue(c) === previous)) select.value = previous;
+}
+function resolveCustomerId(inputId, selectId, messageId) {
+  const raw = $(inputId)?.value.trim().toUpperCase() || "";
+  const select = $(selectId);
+  const message = $(messageId);
+  if(!select || !message) return null;
+  if(!raw) {
+    select.value = "";
+    message.textContent = "Enter the customer's unique ID to load their name and due.";
+    message.style.color = "var(--muted)";
+    return null;
+  }
+  const account = customerSummaries().find(c => c.customer_id != null && (c.customer_code || ("CUS-" + String(c.customer_id).padStart(6,"0"))).toUpperCase() === raw);
+  if(!account) {
+    select.value = "";
+    message.textContent = "Customer ID not found. Check the ID and try again.";
+    message.style.color = "#a33333";
+    return null;
+  }
+  if(account.balance <= 0) {
+    select.value = "";
+    message.textContent = accountLabel(account) + " has no outstanding due.";
+    message.style.color = "#a33333";
+    return null;
+  }
+  select.value = accountOptionValue(account);
+  message.textContent = "Matched: " + accountLabel(account) + " · outstanding due " + rupees(account.balance);
+  message.style.color = "#315b43";
+  return account;
 }
 function refreshCreditCustomerOptions() {
   const select = $("rvCreditExistingCustomer");
@@ -653,6 +682,7 @@ function updateReviewPaymentFields() {
 
 $("rvKind").addEventListener("change", updateReviewPaymentFields);
 $("rvExistingCustomer").addEventListener("change", updateReviewPaymentFields);
+$("rvPaymentCustomerId").addEventListener("input", () => { resolveCustomerId("rvPaymentCustomerId","rvExistingCustomer","rvPaymentCustomerMatch"); updateReviewPaymentFields(); });
 $("rvCreditExistingCustomer").addEventListener("change", updateReviewPaymentFields);
 $("rvAmount").addEventListener("input", updateReviewPaymentFields);
 $("rvPaidNow").addEventListener("input", updateReviewPaymentFields);
@@ -859,11 +889,12 @@ function renderDuePayments() {
   const select = $("dueCustomerSelect");
   const previous = select?.value || "";
   if(select) {
-    select.innerHTML = '<option value="">Choose customer with outstanding due</option>' + due.map(c =>
+    select.innerHTML = '<option value="">Enter customer ID first</option>' + due.filter(c => c.customer_id != null).map(c =>
       '<option value="' + esc(accountOptionValue(c)) + '">' + esc(accountLabel(c)) + ' — due ' + esc(rupees(c.balance)) + '</option>'
     ).join("");
     if(due.some(c => accountOptionValue(c) === previous)) select.value = previous;
   }
+  resolveCustomerId("dueCustomerIdInput","dueCustomerSelect","dueCustomerIdMatch");
   $("dueCustomerCount").textContent = due.length + (due.length === 1 ? " customer" : " customers");
   $("dueCustomerList").innerHTML = due.length ? due.map(c =>
     '<button type="button" onclick="selectDueCustomer(\'' + esc(accountOptionValue(c)).replace(/'/g,"\\'") + '\')" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer"><span><strong style="display:block;font-size:12px;color:var(--ink)">' + esc(accountLabel(c)) + '</strong><small style="color:var(--muted)">' + esc(c.customer_code || "Legacy record") + ' · Open customer account</small></span><strong style="color:#a33333;white-space:nowrap">' + rupees(c.balance) + '</strong></button>'
@@ -885,14 +916,16 @@ function updateDuePaymentBalance() {
 }
 
 $("dueCustomerSelect").addEventListener("change", updateDuePaymentBalance);
+$("dueCustomerIdInput").addEventListener("input", () => { resolveCustomerId("dueCustomerIdInput","dueCustomerSelect","dueCustomerIdMatch"); updateDuePaymentBalance(); });
 
 async function recordDuePayment() {
   const selectedValue = $("dueCustomerSelect").value;
+  const typedCustomerId = $("dueCustomerIdInput").value.trim().toUpperCase();
   const amount = Number($("duePaymentAmount").value);
   const note = $("duePaymentNote").value.trim() || "Due repayment";
   const account = customerSummaries().find(c => accountOptionValue(c) === selectedValue);
   const customer = account?.customer || "";
-  if(!account || account.balance <= 0) { showToast("Choose a customer who has an outstanding due."); return; }
+  if(!account || account.balance <= 0 || !account.customer_code || account.customer_code.toUpperCase() !== typedCustomerId) { showToast("Enter and verify the correct customer ID first."); $("dueCustomerIdInput").focus(); return; }
   if(!Number.isFinite(amount) || amount <= 0 || Math.round(amount*100)/100 !== amount) { showToast("Enter a valid repayment amount."); $("duePaymentAmount").focus(); return; }
   if(amount > account.balance) { showToast("Payment cannot exceed this customer's due of " + rupees(account.balance) + "."); $("duePaymentAmount").focus(); return; }
   const button = document.querySelector("#view-due-payments .btn-primary");
@@ -909,6 +942,8 @@ async function recordDuePayment() {
     }
     $("duePaymentAmount").value = "";
     $("duePaymentNote").value = "";
+    $("dueCustomerIdInput").value = "";
+    $("dueCustomerSelect").value = "";
     renderDuePayments();
     renderDashboard();
     renderLedger();
@@ -1086,6 +1121,8 @@ function showReviewForm(parsed) {
   $("rvCustomer").value = parsed.customer || "";
   $("rvCustomerIdentity").value = "";
   $("rvExistingCustomer").value = "";
+  $("rvPaymentCustomerId").value = "";
+  if($("rvPaymentCustomerMatch")) $("rvPaymentCustomerMatch").textContent = "Enter the customer's unique ID to load their name and due.";
   $("rvCreditExistingCustomer").value = "";
   $("rvKind").value = parsed.kind || "credit_sale";
   $("rvAmount").value = parsed.amount || "";
@@ -1105,6 +1142,7 @@ async function confirmAndSave() {
   const kind = $("rvKind").value;
   const typedName = $("rvCustomer").value.trim();
   const identity = $("rvCustomerIdentity").value.trim();
+  const typedPaymentCustomerId = $("rvPaymentCustomerId")?.value.trim().toUpperCase() || "";
   const selectedValue = kind === "payment_received" ? $("rvExistingCustomer").value : (kind === "credit_sale" ? $("rvCreditExistingCustomer").value : "");
   const selectedAccount = selectedValue ? customerSummaries().find(c => accountOptionValue(c) === selectedValue) : null;
   const customer = selectedAccount ? selectedAccount.customer : (kind === "cash_expense" ? typedName : (kind === "credit_sale" && identity ? typedName + " · " + identity : typedName));
@@ -1112,9 +1150,9 @@ async function confirmAndSave() {
   const amount = Number($("rvAmount").value);
   const paidNow = kind === "credit_sale" ? Number($("rvPaidNow").value || 0) : 0;
   const note = $("rvNote").value.trim();
-  if (kind === "payment_received" && !selectedAccount) {
-    showToast("Choose the exact existing customer account.");
-    $("rvExistingCustomer").focus(); return;
+  if (kind === "payment_received" && (!selectedAccount || !selectedAccount.customer_code || selectedAccount.customer_code.toUpperCase() !== typedPaymentCustomerId)) {
+    showToast("Enter the correct customer ID first, then verify the name and details.");
+    $("rvPaymentCustomerId").focus(); return;
   }
   if (!customer) {
     showToast("Please enter a customer name.");
