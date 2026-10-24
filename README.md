@@ -8,7 +8,7 @@
 
 Explore the live GitHub Pages demo:
 
-- **Demo URL:** [https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com](https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com)
+- **URL:** [https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com](https://nishantekka2007-sys.github.io/voicekhata-hackday/?utm_source=chatgpt.com)
 
 The demo runs entirely in the browser – no server is required. Transactions are stored locally in `localStorage` and are **not** synced to a backend.
 
