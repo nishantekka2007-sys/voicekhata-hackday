@@ -93,6 +93,16 @@ The alternate Browser speech mode may use remote speech services and can return 
 - If a sentence is unclear, edit the transcript or the review form; no parser result is written to the ledger until you press **Confirm & Save**. Verify all customer names, identifiers, and rupee values.
 - The review form retains the existing credit-bill, partial-payment, customer-ID, and balance checks.
 
+## October 2026 Hindi voice workflow refinement
+
+- **Preload before recording:** Selecting on-device Whisper prepares the language model before microphone capture begins. The initial model download requires internet; later uses may load from cache.
+- **Hindi-first recognition:** Hindi uses multilingual Whisper Base when available, with multilingual Tiny as a fallback. The transcription step specifies Hindi for Hindi recordings rather than English translation.
+- **Retry speech:** The Voice Entry screen can retranscribe the most recent local recording without recording again. It keeps user-edited transcript text unless the user explicitly approves replacing it.
+- **Review names and amounts:** Whisper can misrecognize names, Hindi number words and money directions. Correct the transcript before using Understand Transaction. No extraction is automatically saved.
+- **Browser speech:** This separate mode may need a remote browser provider even when the internet generally works; prefer on-device Whisper on devices where the model can load.
+
+This is a workflow reliability improvement, not a guarantee of Hindi speech accuracy. Automated tests do not simulate a real microphone, regional accents, noise or live CDN behavior.
+
 ## Features
 
 - Responsive dashboard with ledger-derived totals and money-flow chart
