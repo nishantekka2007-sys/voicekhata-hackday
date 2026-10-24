@@ -1980,6 +1980,14 @@ function recordAnother() {
      }
      if(e.key==="Escape")input.value="";
    });
+   // Make the visible ⌘K hint functional on both Mac and Windows/Linux.
+   document.addEventListener("keydown",function(e){
+     const isSearchShortcut=(e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k";
+     if(!isSearchShortcut)return;
+     e.preventDefault();
+     input.focus();
+     input.select();
+   });
  }
  const shopName=document.getElementById("shopNameSidebar");
  const topName=document.getElementById("vkTopName");
