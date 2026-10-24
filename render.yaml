@@ -1,12 +1,12 @@
-# Render Blueprint for the full-stack VoiceKhata service.
-# The persistent disk keeps SQLite data across redeploys; this requires a paid
-# Render web service plan. GitHub Pages remains a separate static preview.
+# Free-tier Render Blueprint for the VoiceKhata hackathon demo.
+# IMPORTANT: Free instances have an ephemeral filesystem. SQLite data can be
+# lost when the service sleeps, restarts, or redeploys. Use fake demo data only.
 services:
   - type: web
     name: voicekhata-api
     runtime: python
     region: singapore
-    plan: starter
+    plan: free
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
@@ -18,8 +18,4 @@ services:
       - key: VOICEKHATA_CORS_ORIGINS
         value: https://nishantekka2007-sys.github.io
       - key: VOICEKHATA_DB_PATH
-        value: /var/data/voicekhata.db
-    disk:
-      name: voicekhata-data
-      mountPath: /var/data
-      sizeGB: 1
+        value: /tmp/voicekhata.db
