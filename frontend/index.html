@@ -185,6 +185,18 @@
     .customer-balance.positive strong{color:#1a7a48}
     .customer-balance.negative strong{color:var(--red)}
     .customer-balance.zero strong{color:var(--muted)}
+    .customer-card{align-items:flex-start}
+    .customer-details{flex:1;min-width:0}
+    .customer-money{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+    .customer-money div{background:#f7faf8;border-radius:8px;padding:9px}
+    .customer-money small{display:block;font-size:9px;color:var(--muted);margin-bottom:4px}
+    .customer-money strong{display:block;font-size:12px;font-weight:800;overflow-wrap:anywhere}
+    .paid-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;border-radius:20px;padding:5px 8px;background:#e6f5ed;color:#1a7a48;white-space:nowrap}
+    .due-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;border-radius:20px;padding:5px 8px;background:#fff4df;color:#8a5b00;white-space:nowrap}
+    .delete-btn{border:1px solid #f0d4d4;background:#fff7f7;color:#a33333;border-radius:6px;padding:6px 8px;font-size:10px;font-weight:700;white-space:nowrap}
+    .delete-btn:hover{background:#ffeaea}
+    .ledger-actions{display:flex;justify-content:flex-end}
+    @media(max-width:600px){.customer-money{grid-template-columns:1fr}.customer-money div{display:flex;justify-content:space-between;gap:8px}.customer-money small{margin-bottom:0}}
 
     /* ── Toast ── */
     .toast{position:fixed;bottom:22px;right:22px;z-index:100;max-width:min(380px,calc(100vw - 36px));background:#203e31;color:#fff;padding:13px 17px;border-radius:10px;box-shadow:0 8px 28px #122c202c;font-size:12px;line-height:1.5;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s}
@@ -330,7 +342,7 @@
         <input class="search-input" id="ledgerSearch" placeholder="🔍 Search by customer or type..." oninput="renderLedger()">
         <p class="ledger-count" id="ledgerCount"></p>
         <div class="panel" style="padding:0;overflow:hidden">
-          <div class="table-scroll"><table><thead><tr><th style="padding-left:20px">Customer</th><th>Type</th><th>Date</th><th>Note</th><th style="text-align:right;padding-right:20px">Amount</th></tr></thead><tbody id="ledgerRows"></tbody></table></div>
+          <div class="table-scroll"><table><thead><tr><th style="padding-left:20px">Customer</th><th>Type</th><th>Date &amp; Time</th><th>Note</th><th style="text-align:right">Amount</th><th style="text-align:right;padding-right:20px">Action</th></tr></thead><tbody id="ledgerRows"></tbody></table></div>
         </div>
       </div>
 
@@ -564,13 +576,37 @@ function navigate(view) {
 function toggleSidebar() { $("sidebar").classList.toggle("open"); }
 
 // ── Metrics & Dashboard ───────────────────────────────────
-function balancesByCustomer() {
-  const balances = {};
+function customerSummaries() {
+  const summaries = new Map();
   for(const t of transactions) {
-    if(t.kind === "cash_expense") continue;
-    balances[t.customer] = (balances[t.customer]||0) + (t.kind==="credit_sale" ? Number(t.amount) : -Number(t.amount));
+    if(!t.customer || t.kind === "cash_expense") continue;
+    const key = String(t.customer).trim().toLocaleLowerCase();
+    if(!key) continue;
+    if(!summaries.has(key)) summaries.set(key, {
+      customer: String(t.customer).trim(), total: 0, paid: 0, balance: 0,
+      lastActivity: t.created_at || "", transactions: 0
+    });
+    const item = summaries.get(key);
+    item.transactions += 1;
+    if(t.kind === "credit_sale") item.total += Number(t.amount) || 0;
+    if(t.kind === "payment_received") item.paid += Number(t.amount) || 0;
+    item.balance = item.total - item.paid;
+    if(new Date(t.created_at || 0) > new Date(item.lastActivity || 0)) item.lastActivity = t.created_at || item.lastActivity;
   }
-  return Object.entries(balances).map(([customer, balance]) => ({customer, balance}));
+  return [...summaries.values()].map(item => ({
+    ...item,
+    balance: Math.max(0, Math.round((item.total-item.paid)*100)/100),
+    paid: Math.round(item.paid*100)/100,
+    total: Math.round(item.total*100)/100,
+    settled: item.total > 0 && item.paid >= item.total
+  })).sort((a,b)=>a.customer.localeCompare(b.customer));
+}
+
+function balancesByCustomer() {
+  return customerSummaries().map(item => ({
+    customer:item.customer,
+    balance: Math.round((item.total-item.paid)*100)/100
+  }));
 }
 
 function renderDashboard() {
@@ -630,30 +666,63 @@ function renderLedger() {
   const q = ($("ledgerSearch")?.value||"").toLowerCase();
   const sorted = [...transactions].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const filtered = sorted.filter(t => (t.customer+" "+t.note+" "+(kindLabels[t.kind]||"")).toLowerCase().includes(q));
-  $("ledgerCount").textContent = `${filtered.length} transaction${filtered.length!==1?"s":""} shown`;
+  $("ledgerCount").textContent = `${filtered.length} transaction${filtered.length!==1?"s":""} shown · dates and times are recorded automatically`;
   $("ledgerRows").innerHTML = filtered.length ? filtered.map((t,i) => `
     <tr>
       <td style="padding-left:20px"><div class="person-cell"><span class="av ${toneClass(i)}">${esc(initials(t.customer))}</span><div class="person-info"><strong>${esc(t.customer)}</strong></div></div></td>
       <td><span class="type-pill ${kindClass(t.kind)}">${kindLabels[t.kind]}</span></td>
-      <td style="font-size:11px;color:var(--muted)">${dateTime(t.created_at)}</td>
+      <td style="font-size:11px;color:var(--muted);white-space:nowrap">${dateTime(t.created_at)}</td>
       <td style="font-size:11px;color:var(--muted);max-width:180px">${esc(t.note||"—")}</td>
-      <td class="amount-cell ${t.kind!=="payment_received"?"outgoing":""}" style="padding-right:20px">${t.kind==="payment_received"?"−":"+"}${rupees(t.amount)}</td>
-    </tr>`).join("") : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">No transactions found.</td></tr>';
+      <td class="amount-cell ${t.kind!=="payment_received"?"outgoing":""}" style="text-align:right">${t.kind==="payment_received"?"−":"+"}${rupees(t.amount)}</td>
+      <td style="padding-right:20px"><div class="ledger-actions"><button class="delete-btn" onclick="deleteTransaction('${esc(t.id)}')" aria-label="Delete transaction for ${esc(t.customer)}">🗑 Delete</button></div></td>
+    </tr>`).join("") : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No transactions found.</td></tr>';
 }
 
 // ── Customers ─────────────────────────────────────────────
 function renderCustomers() {
-  const q = ($("custSearch")?.value||"").toLowerCase();
-  const balances = balancesByCustomer().filter(b => b.customer.toLowerCase().includes(q));
-  $("customerGrid").innerHTML = balances.length ? balances.map((b,i) => {
-    const cls = b.balance>0?"positive":b.balance<0?"negative":"zero";
-    const lbl = b.balance>0?"Outstanding":b.balance<0?"Credit balance":"Settled";
-    return `<div class="customer-card">
-      <span class="av ${toneClass(i)}" style="width:38px;height:38px;border-radius:10px;font-size:13px">${esc(initials(b.customer))}</span>
-      <div class="customer-info"><strong>${esc(b.customer)}</strong><small>Customer account</small></div>
-      <div class="customer-balance ${cls}"><strong>${rupees(Math.abs(b.balance))}</strong><small>${lbl}</small></div>
+  const q = ($("custSearch")?.value||"").trim().toLocaleLowerCase();
+  const summaries = customerSummaries().filter(b => b.customer.toLocaleLowerCase().includes(q));
+  $("customerGrid").innerHTML = summaries.length ? summaries.map((b,i) => {
+    const isSettled = b.settled;
+    const badge = isSettled
+      ? '<span class="paid-status" aria-label="Paid in full">✓ PAID IN FULL</span>'
+      : '<span class="due-status">● PAYMENT DUE</span>';
+    return `<div class="customer-card" style="display:block">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="av ${toneClass(i)}" style="width:38px;height:38px;border-radius:10px;font-size:13px">${esc(initials(b.customer))}</span>
+        <div class="customer-info"><strong>${esc(b.customer)}</strong><small>Last activity: ${dateTime(b.lastActivity)}</small></div>
+        ${badge}
+      </div>
+      <div class="customer-money">
+        <div><small>Total credit</small><strong>${rupees(b.total)}</strong></div>
+        <div><small>Paid so far</small><strong>${rupees(b.paid)}</strong></div>
+        <div><small>Left to pay</small><strong style="color:${isSettled?"#1a7a48":"#a33333"}">${rupees(b.balance)} ${isSettled?"✓":""}</strong></div>
+      </div>
     </div>`;
-  }).join("") : '<p style="color:var(--muted);font-size:12px">No customers found.</p>';
+  }).join("") : '<p style="color:var(--muted);font-size:12px">No customers found yet. Add a credit sale or payment from Voice Entry.</p>';
+}
+
+async function deleteTransaction(id) {
+  const txn = transactions.find(t => String(t.id) === String(id));
+  if(!txn) { showToast("Transaction not found. Refresh the ledger and try again."); return; }
+  const confirmed = window.confirm(`Delete this transaction?\n\nCustomer: ${txn.customer}\nType: ${kindLabels[txn.kind]}\nAmount: ${rupees(txn.amount)}\n\nThis changes the customer's balance.`);
+  if(!confirmed) return;
+
+  try {
+    if(window.VoiceKhataCloud?.signedIn()) {
+      await window.VoiceKhataCloud.request("/transactions/" + encodeURIComponent(String(id)), {method:"DELETE"});
+      await window.VoiceKhataCloud.loadLedger();
+    } else {
+      transactions = transactions.filter(t => String(t.id) !== String(id));
+      saveTransactions();
+    }
+    renderDashboard();
+    renderLedger();
+    renderCustomers();
+    showToast("Transaction deleted. Customer balances have been recalculated.");
+  } catch(error) {
+    showToast("Could not delete transaction: " + error.message);
+  }
 }
 
 // ── NLP Parser ────────────────────────────────────────────
