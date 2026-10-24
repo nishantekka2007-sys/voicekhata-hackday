@@ -866,7 +866,7 @@ function renderDuePayments() {
   }
   $("dueCustomerCount").textContent = due.length + (due.length === 1 ? " customer" : " customers");
   $("dueCustomerList").innerHTML = due.length ? due.map(c =>
-    '<button type="button" onclick="selectDueCustomer(\'' + esc(c.customer).replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\')" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer"><span><strong style="display:block;font-size:12px;color:var(--ink)">' + esc(c.customer) + '</strong><small style="color:var(--muted)">Open customer account</small></span><strong style="color:#a33333;white-space:nowrap">' + rupees(c.balance) + '</strong></button>'
+    '<button type="button" onclick="selectDueCustomer(\\'' + esc(accountOptionValue(c)).replace(/'/g,"\\\\'") + '\\')" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer"><span><strong style="display:block;font-size:12px;color:var(--ink)">' + esc(accountLabel(c)) + '</strong><small style="color:var(--muted)">' + esc(c.customer_code || "Legacy record") + ' · Open customer account</small></span><strong style="color:#a33333;white-space:nowrap">' + rupees(c.balance) + '</strong></button>'
   ).join("") : '<p style="color:var(--muted);font-size:12px;padding:12px 0">No outstanding dues. All customer accounts are settled.</p>';
   updateDuePaymentBalance();
 }
@@ -1145,15 +1145,15 @@ async function confirmAndSave() {
       if(window.VoiceKhataCloud?.signedIn()) {
         const created = await window.VoiceKhataCloud.request("/customers", {method:"POST",body:JSON.stringify({display_name:typedName,identifier})});
         accountId = created.id;
-        savedCustomer = created.display_name + " · " + created.identifier;
+        savedCustomer = created.display_name;
       } else {
         accountId = "local-CUS-" + Date.now();
-        savedCustomer = typedName + " · " + identity;
+        savedCustomer = typedName;
       }
     }
-    const entries = [{customer:savedCustomer,customer_id:accountId,kind,amount,note}];
+    const entries = [{customer:savedCustomer,customer_id:accountId,customer_identifier:kind === "credit_sale" && !selectedAccount ? identity : (selectedAccount?.identifier || ""),kind,amount,note}];
     if(kind === "credit_sale" && paidNow > 0) {
-      entries.push({customer:savedCustomer,customer_id:accountId,kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
+      entries.push({customer:savedCustomer,customer_id:accountId,customer_identifier:kind === "credit_sale" && !selectedAccount ? identity : (selectedAccount?.identifier || ""),kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
     }
     if (window.VoiceKhataCloud?.signedIn()) {
       for(const entry of entries) {
