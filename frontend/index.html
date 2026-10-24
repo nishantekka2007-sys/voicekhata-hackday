@@ -446,6 +446,7 @@
                 <span class="review-step active">2 REVIEW</span>
                 <span class="review-step">3 SAVE</span>
               </div>
+              <p id="reviewSpeechWarning" role="status" style="padding:11px 12px;margin-bottom:12px;border:1px solid #e5d8ac;border-radius:9px;background:#fff9e8;color:#6d5421;font-size:12px;line-height:1.5"></p>
               <div class="review-fields">
                 <div class="review-field" id="rvCustomerNameWrap"><label for="rvCustomer">CUSTOMER NAME</label><input id="rvCustomer" placeholder="e.g. Ram"></div>
 <div class="review-field" id="rvCreditExistingWrap" style="display:none"><label for="rvCreditExistingCustomer">EXISTING CUSTOMER? (OPTIONAL)</label><select id="rvCreditExistingCustomer"><option value="">Create a new customer account</option></select><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Select an existing account to keep all their bills together. No ID needs to be remembered.</small></div>
@@ -454,6 +455,7 @@
                 <div class="review-field">
                   <label for="rvKind">TRANSACTION TYPE</label>
                   <select id="rvKind">
+                    <option value="">Choose transaction type after checking speech</option>
                     <option value="credit_sale">Credit given (Udhaar)</option>
                     <option value="payment_received">Payment received</option>
                     <option value="cash_expense">Shop expense</option>
@@ -1105,9 +1107,16 @@ async function parseCurrentText() {
       // A multiple-entry transcript is staged for individual review, not auto-saved.
       parsed = localDraft;
     } else if (window.VoiceKhataCloud?.signedIn()) {
-      parsed = await window.VoiceKhataCloud.request("/transactions/parse", {
-        method:"POST", body:JSON.stringify({text,language:$("langSelect")?.value || "auto"})
-      });
+      try {
+        const serverDraft = await window.VoiceKhataCloud.request("/transactions/parse", {
+          method:"POST", body:JSON.stringify({text,language:$("langSelect")?.value || "auto"})
+        });
+        // Prefer the consistent Hindi-aware parser when the API also misses fields.
+        parsed = localDraft.missing_fields?.length === 0 ? localDraft : serverDraft;
+      } catch (error) {
+        console.warn("Backend extraction unavailable; retaining editable local draft",error);
+        parsed = localDraft;
+      }
     } else {
       parsed = parseTransactionText(text);
     }
@@ -1133,7 +1142,13 @@ function showReviewForm(parsed) {
   $("rvPaymentCustomerId").value = "";
   if($("rvPaymentCustomerMatch")) $("rvPaymentCustomerMatch").textContent = "Enter the customer's unique ID to load their name and due.";
   $("rvCreditExistingCustomer").value = "";
-  $("rvKind").value = parsed.kind || "credit_sale";
+  $("rvKind").value = parsed.kind || "";
+  const warning = $("reviewSpeechWarning");
+  if (warning) {
+    warning.textContent = parsed.review_warning || "Review every field before confirming.";
+    warning.style.borderColor = parsed.missing_fields?.length ? "#e5d8ac" : "#c9e3d0";
+    warning.style.background = parsed.missing_fields?.length ? "#fff9e8" : "#eff8f1";
+  }
   $("rvAmount").value = parsed.amount || "";
   $("rvPaidNow").value = parsed.paid_now || 0;
   $("rvNote").value = parsed.note || "";
@@ -1153,6 +1168,11 @@ function discardReview() {
 
 async function confirmAndSave() {
   const kind = $("rvKind").value;
+  if (!["credit_sale","payment_received","cash_expense"].includes(kind)) {
+    showToast("Choose whether this was a credit sale, payment received, or shop expense before saving.");
+    $("rvKind").focus();
+    return;
+  }
   const typedName = $("rvCustomer").value.trim();
   const identity = $("rvCustomerIdentity").value.trim();
   const typedPaymentCustomerId = $("rvPaymentCustomerId")?.value.trim().toUpperCase() || "";
