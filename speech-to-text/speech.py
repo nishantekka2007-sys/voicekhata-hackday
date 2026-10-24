@@ -11,6 +11,15 @@ Environment overrides:
     WHISPER_DEVICE   auto | cpu | cuda                         (default: auto)
     WHISPER_COMPUTE  int8 | int8_float16 | float16 | float32   (default: by device)
 
+# Quick test from the terminal:
+#
+# Improvements:
+# - Model size can be overridden via WHISPER_MODEL (default "small").
+# - Beam size, temperature and patience can be tuned via env vars:
+#   WHISPER_BEAM_SIZE (default 5), WHISPER_TEMPERATURE (default 0.0),
+#   WHISPER_PATIENCE (default 1.0).
+# - Audio files are pre‑processed to 16 kHz mono wav for better consistency.
+#   This conversion uses ffmpeg (bundled with faster‑whisper's PyAV) and creates a temporary file that is deleted after transcription.
 Quick test from the terminal:
     python speech.py recording.wav hinglish
 """
@@ -20,11 +29,16 @@ import os
 import sys
 import threading
 import time
+import subprocess
+import tempfile
+import shutil
 from typing import Any, Dict, Optional
 
+BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "5"))
+TEMPERATURE = float(os.getenv("WHISPER_TEMPERATURE", "0.0"))
+PATIENCE = float(os.getenv("WHISPER_PATIENCE", "1.0"))
 MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
 DEVICE = os.getenv("WHISPER_DEVICE", "auto").lower()
-COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE", "")
 
 # Whisper treats initial_prompt as "previous text": it nudges spelling, script
 # and vocabulary. This one biases Roman-script Hinglish and kirana words.
@@ -53,12 +67,36 @@ _load_lock = threading.Lock()
 _run_lock = threading.Lock()  # one transcription at a time keeps CPU/RAM predictable
 
 
+def _preprocess_audio(audio_path: str) -> tuple:
+    """Convert audio to 16 kHz mono wav using ffmpeg.
+    Returns a tuple (wav_path, temp_dir) which should be cleaned up by the caller.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    out_path = os.path.join(tmp_dir, "converted.wav")
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", audio_path,
+        "-ar", "16000",
+        "-ac", "1",
+        out_path,
+    ]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise RuntimeError(f"Audio preprocessing failed: {e}")
+    return out_path, tmp_dir
+
+
 def _pick_runtime() -> tuple:
+    """Select device and compute type based on environment variables.
+    Returns (device, compute_type).
+    """
     device = DEVICE
     if device == "auto":
         try:
             import ctranslate2
-
             device = "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
         except Exception:
             device = "cpu"
@@ -99,22 +137,26 @@ def info() -> Dict[str, Any]:
     }
 
 
-def _run(model, audio_path: str, lang: Optional[str], prompt: Optional[str]):
+def _run(model, audio_path: str, lang: Optional[str], prompt: Optional[str], beam_size: int = 5, temperature: float = 0.0, patience: float = 1.0) -> tuple:
+    """Run Whisper transcription with configurable decoding parameters.
+    Returns (segments, meta).
+    """
     segments, meta = model.transcribe(
         audio_path,
         language=lang,
         task="transcribe",
-        beam_size=5,
+        beam_size=beam_size,
+        temperature=temperature,
+        patience=patience,
         vad_filter=True,                       # drop silence / shop background noise
         vad_parameters={"min_silence_duration_ms": 500},
         initial_prompt=prompt,
         condition_on_previous_text=False,      # avoids repeated-phrase loops
     )
-    items = [
-        {"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}
-        for s in segments  # generator: decoding actually happens here
-    ]
-    return items, meta
+    return segments, meta
+
+# Remove dead code after _run
+
 
 
 def transcribe(audio_path: str, language: str = "auto") -> Dict[str, Any]:
