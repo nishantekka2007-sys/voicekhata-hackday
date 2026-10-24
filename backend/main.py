@@ -258,10 +258,19 @@ def get_transactions(
 ):
     with db() as conn:
         rows = conn.execute(
-            "SELECT * FROM transactions WHERE user_id=? ORDER BY created_at DESC, id DESC LIMIT ?",
+            """SELECT t.*, c.identifier AS customer_identifier
+               FROM transactions t
+               LEFT JOIN customers c ON c.id=t.customer_id AND c.user_id=t.user_id
+               WHERE t.user_id=? ORDER BY t.created_at DESC, t.id DESC LIMIT ?""",
             (user["id"], limit),
         ).fetchall()
-    return {"transactions": [_public_transaction(row) for row in rows]}
+    items = []
+    for row in rows:
+        item = _public_transaction(row)
+        if item.get("customer_id") is not None:
+            item["customer_code"] = f"CUS-{item['customer_id']:06d}"
+        items.append(item)
+    return {"transactions": items}
 
 
 @app.post("/api/transactions", status_code=201)
