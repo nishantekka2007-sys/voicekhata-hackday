@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f35">
+  <title>VoiceKhata — Your shop, in your words</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" aria-label="VoiceKhata home">
+        <span class="brand-mark" aria-hidden="true">vk</span>
+        <span class="brand-copy"><strong>voicekhata</strong><small>YOUR SHOP, IN YOUR WORDS</small></span>
+      </a>
+      <div class="shop-switcher"><span class="shop-avatar">S</span><span><strong>Sharma General Store</strong><small>Owner account</small></span><span class="chevron">⌄</span></div>
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span>Overview</button>
+        <button class="nav-item" data-view="ledger"><span class="nav-icon">▤</span>Khata ledger</button>
+        <button class="nav-item" data-view="voice"><span class="nav-icon">◉</span>Voice entry<span class="new-pill">NEW</span></button>
+        <button class="nav-item" data-view="customers"><span class="nav-icon">♙</span>Customers</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="help-card"><span class="help-icon">✦</span><strong>Your digital khata</strong><p>Speak naturally. Review the details. Save with confidence.</p><button id="helpButton" class="text-button">How it works <span>↗</span></button></div>
+        <div class="profile-row"><span class="profile-avatar">RS</span><span><strong>Rahul Sharma</strong><small>Shop owner</small></span><button class="more-button" aria-label="Profile options">···</button></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button id="menuButton" class="icon-button mobile-menu" aria-label="Open menu">☰</button>
+        <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumbCurrent">Overview</strong></div>
+        <div class="topbar-actions"><span class="today-label" id="todayLabel"></span><button class="icon-button notification-button" aria-label="Notifications">♧<i></i></button><span class="top-avatar">RS</span></div>
+      </header>
+
+      <div class="demo-banner" id="modeBanner"><span class="status-dot"></span><span><strong>Preview mode</strong> — sample data is shown until your backend API is connected.</span><button id="bannerDismiss" aria-label="Dismiss notice">×</button></div>
+
+      <section class="view active-view" id="view-dashboard">
+        <div class="page-heading">
+          <div><p class="eyebrow">SATURDAY, <span id="dateEyebrow"></span></p><h1>Good day, Rahul <span class="wave">✳</span></h1><p class="subheading">Here's what's happening at your shop today.</p></div>
+          <button class="primary-button" data-go="voice"><span>＋</span> Add transaction</button>
+        </div>
+        <div class="metric-grid">
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Total to collect</span><span class="metric-icon green-icon">₹</span></div><div class="metric-value" id="totalDue">₹12,450</div><div class="metric-foot"><span class="trend positive">↗ 8.2%</span><span>vs. last month</span></div><div class="mini-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Collected today</span><span class="metric-icon lilac-icon">↙</span></div><div class="metric-value" id="collectedToday">₹3,200</div><div class="metric-foot"><span class="trend positive">↗ 12.5%</span><span>vs. yesterday</span></div><div class="mini-bars lilac-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Credit given today</span><span class="metric-icon peach-icon">↗</span></div><div class="metric-value" id="creditToday">₹1,850</div><div class="metric-foot"><span class="trend neutral">3 transactions</span><span>today</span></div><div class="mini-bars peach-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">Active customers</span><span class="metric-icon blue-icon">♙</span></div><div class="metric-value" id="activeCustomers">48</div><div class="metric-foot"><span class="trend positive">+4 new</span><span>this month</span></div><div class="avatar-stack"><span>RK</span><span>AS</span><span>PM</span><span>+45</span></div></article>
+        </div>
+
+        <div class="content-grid">
+          <article class="panel chart-panel"><div class="panel-heading"><div><h2>Money flow</h2><p>Track credit and collections over time</p></div><select id="chartRange" class="select-control" aria-label="Chart time range"><option value="week">This week</option><option value="month">This month</option></select></div><div class="chart-legend"><span><i class="legend-dot credit-dot"></i>Credit given</span><span><i class="legend-dot payment-dot"></i>Payments collected</span></div><div class="chart-wrap"><canvas id="moneyChart" aria-label="Credit and collection chart"></canvas></div></article>
+          <article class="panel quick-panel"><div class="panel-heading"><div><h2>Quick actions</h2><p>Keep your khata up to date</p></div></div><button class="quick-action" data-go="voice"><span class="quick-action-icon mic-action">◉</span><span><strong>Speak a transaction</strong><small>Record it in your own words</small></span><span class="action-arrow">↗</span></button><button class="quick-action" data-go="ledger"><span class="quick-action-icon add-action">＋</span><span><strong>Add a manual entry</strong><small>Enter details yourself</small></span><span class="action-arrow">↗</span></button><button class="quick-action" data-go="customers"><span class="quick-action-icon people-action">♙</span><span><strong>View customer balances</strong><small>See who owes what</small></span><span class="action-arrow">↗</span></button><div class="voice-tip"><span>✦</span><p><strong>Try saying:</strong> “Ramesh took ₹500 worth of rice on credit.”</p></div></article>
+        </div>
+
+        <article class="panel transactions-panel"><div class="panel-heading"><div><h2>Recent transactions</h2><p>Your latest shop activity</p></div><button class="secondary-button" data-go="ledger">View all <span>→</span></button></div><div class="table-scroll"><table><thead><tr><th>PERSON / DETAILS</th><th>TYPE</th><th>DATE & TIME</th><th class="amount-heading">AMOUNT</th><th>STATUS</th></tr></thead><tbody id="recentRows"></tbody></table></div></article>
+        <footer class="footer"><span>Made for the people who keep India moving. <span class="heart">♥</span></span><span>VoiceKhata <b>·</b> MVP preview</span></footer>
+      </section>
+
+      <section class="view" id="view-voice">
+        <div class="page-heading"><div><p class="eyebrow">FAST & NATURAL</p><h1>Voice entry <span class="wave">✳</span></h1><p class="subheading">Say it the way you'd tell a trusted helper. We'll prepare the entry for you.</p></div></div>
+        <div class="voice-layout">
+          <article class="panel voice-card"><div class="voice-card-top"><span class="voice-orb">◉</span><span class="voice-status" id="recordStatus">READY WHEN YOU ARE</span></div><h2>What happened at your shop?</h2><p class="muted">Speak in English or your preferred supported language.</p><div class="record-area"><button id="recordButton" class="record-button" aria-label="Start recording"><span>🎙</span></button><p id="recordHint">Tap the mic to start recording</p><small>Or type your transaction below</small></div><label class="field-label" for="transcriptInput">Transaction details</label><textarea id="transcriptInput" rows="3" placeholder="e.g. Ramesh took 2 kg rice worth 500 rupees on credit..."></textarea><div class="field-row"><label class="field-label" for="languageSelect">Language</label><select id="languageSelect" class="select-control"><option value="auto">Auto detect</option><option value="en">English</option><option value="hi">Hindi</option><option value="bn">Bengali</option></select></div><button id="understandButton" class="primary-button full-button">Understand transaction <span>→</span></button><p class="privacy-note">🔒 Nothing is saved until you review and confirm the entry.</p></article>
+          <article class="panel review-card"><div class="panel-heading"><div><h2>Review your entry</h2><p>Check every detail before saving</p></div><span class="review-step">STEP 2 OF 2</span></div><div id="emptyReview" class="empty-review"><span class="empty-review-icon">✦</span><strong>Your transaction will appear here</strong><p>Record or type what happened, then choose “Understand transaction”.</p></div><form id="reviewForm" class="review-form hidden"><div class="parsed-badge"><span>✓</span> Details extracted — please verify</div><label class="field-label" for="reviewCustomer">Customer / name</label><input id="reviewCustomer" required placeholder="Customer name"><label class="field-label" for="reviewKind">Transaction type</label><select id="reviewKind" class="select-control"><option value="credit_sale">Credit sale — customer owes you</option><option value="payment_received">Payment received</option><option value="cash_expense">Shop expense</option></select><label class="field-label" for="reviewAmount">Amount (₹)</label><input id="reviewAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><label class="field-label" for="reviewNote">Item / note</label><input id="reviewNote" placeholder="e.g. 2 kg rice"><label class="confirm-check"><input id="confirmCheck" type="checkbox" required><span>I checked the name, amount, and transaction type.</span></label><button class="primary-button full-button" type="submit">Confirm & save <span>✓</span></button><p class="review-message" id="reviewMessage" role="status"></p></form></article>
+        </div>
+      </section>
+
+      <section class="view" id="view-ledger">
+        <div class="page-heading"><div><p class="eyebrow">EVERY RUPEE, ACCOUNTED FOR</p><h1>Khata ledger</h1><p class="subheading">A clear record of credit, collections, and expenses.</p></div><button class="primary-button" data-go="voice">＋ Add transaction</button></div>
+        <article class="panel ledger-panel"><div class="panel-heading"><div><h2>All transactions</h2><p id="ledgerCount">Your shop's transaction history</p></div><input id="ledgerSearch" class="search-input" placeholder="⌕  Search name or note..." aria-label="Search transactions"></div><div class="table-scroll"><table><thead><tr><th>PERSON / DETAILS</th><th>TYPE</th><th>DATE & TIME</th><th class="amount-heading">AMOUNT</th><th>STATUS</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></article>
+      </section>
+
+      <section class="view" id="view-customers">
+        <div class="page-heading"><div><p class="eyebrow">YOUR REGULARS, ALL IN ONE PLACE</p><h1>Customers</h1><p class="subheading">Know each customer's outstanding balance at a glance.</p></div></div>
+        <article class="panel"><div class="panel-heading"><div><h2>Customer balances</h2><p>Sorted by customer name</p></div><input id="customerSearch" class="search-input" placeholder="⌕  Find a customer..." aria-label="Search customers"></div><div class="customer-grid" id="customerGrid"></div></article>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-backdrop hidden" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle"><div class="modal"><button class="modal-close" id="closeHelp" aria-label="Close">×</button><span class="help-icon">✦</span><h2 id="helpTitle">Simple as saying it</h2><ol><li><strong>Say what happened.</strong><p>“Ramesh paid ₹200 towards his old balance.”</p></li><li><strong>Check the details.</strong><p>Review the customer, amount, and transaction type.</p></li><li><strong>Confirm to save.</strong><p>Your ledger updates only after you confirm.</p></li></ol><p class="muted small">AI helps understand your words. The app calculates balances with code.</p></div></div>
+</body>
+</html>
