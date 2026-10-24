@@ -155,6 +155,7 @@ function parseSimpleText(text){
 async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
+  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
   $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
   let parsed;
   try{
@@ -163,7 +164,7 @@ async function understandTransaction(){
     parsed=normalizeTransaction(parsed);
   }catch(error){
     parsed=parseSimpleText(text);
-    showToast(error.message || "Could not parse this entry. Carefully review the draft.");
+    showToast((window.VoiceKhataAuth?.isSignedIn() ? error.message : "Sign in with Google to save a transaction.") + " Carefully review the draft.");
   }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
@@ -177,6 +178,7 @@ async function saveTransaction(event){
   const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
   if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and amount.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
+  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before saving a transaction.");return;}
   const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
   try{
     if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before saving a transaction.");
@@ -226,7 +228,8 @@ function setDates(){
   const now=new Date();
   $("todayLabel").textContent=now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
   $("dateEyebrow").textContent=now.toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"}).toUpperCase();
-  document.querySelector(".eyebrow").textContent=now.toLocaleDateString("en-IN",{weekday:"long"}).toUpperCase()+", "+now.toLocaleDateString("en-IN",{day:"numeric",month:"short"}).toUpperCase();
+  const dashboardEyebrow=document.querySelector("#view-dashboard .eyebrow");
+  if(dashboardEyebrow) dashboardEyebrow.textContent=now.toLocaleDateString("en-IN",{weekday:"long"}).toUpperCase()+", "+now.toLocaleDateString("en-IN",{day:"numeric",month:"short"}).toUpperCase();
 }
 document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.view)));
 document.querySelectorAll("[data-go]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.go)));
