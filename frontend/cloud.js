@@ -52,10 +52,10 @@
     if (modeBanner) modeBanner.textContent = "✓ On-device mode. Your entries are not synced.";
     // The local preview is separate from private, synced records.
     transactions = loadTransactions();
-    demoMode = transactions.length === 0;
-    if (demoMode) transactions = [...DEMO_TRANSACTIONS];
+    // Never repopulate a signed-out workspace with shared sample customer data.
+    demoMode = false;
     const banner = document.getElementById("demoBanner");
-    if (banner) banner.style.display = demoMode ? "" : "none";
+    if (banner) banner.style.display = "none";
     if (document.getElementById("app") && !document.getElementById("app").classList.contains("hidden")) {
       navigate("dashboard");
     }
