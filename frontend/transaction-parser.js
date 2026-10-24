@@ -68,12 +68,12 @@
   function extractCustomer(text, kind) {
     if (kind === "cash_expense") return "Shop Expense";
     const trimmed = text.replace(/^(?:आज|aaj|today|कल|yesterday|aaj\s+toh)\s+/iu, "").trim();
-    const marathi = trimmed.match(/^([\p{L}]{2,}?)(?:ला|ने)\s+/u);
+    const marathi = trimmed.match(/^([\p{L}\p{M}]{2,}?)(?:ला|ने)\s+/u);
     if (marathi) return marathi[1];
-    const name = trimmed.match(/^([\p{L}][\p{L}.'-]*(?:\s+[\p{L}][\p{L}.'-]*){0,2}?)\s+(?:ने|को|से|ला|नी|नेच|\bne\b|\bko\b|\bse\b|\bpaid\b|\btook\b|\bgave\b)/iu);
+    const name = trimmed.match(/^([\p{L}\p{M}][\p{L}\p{M}.'-]*(?:\s+[\p{L}\p{M}][\p{L}\p{M}.'-]*){0,2}?)\s+(?:ने|को|से|ला|नी|नेच|\bne\b|\bko\b|\bse\b|\bpaid\b|\btook\b|\bgave\b)/iu);
     if (name) return name[1].trim();
     // Only infer the first word if there is an explicit transaction verb and amount.
-    const first = trimmed.match(/^([\p{L}][\p{L}.'-]{1,40})\s+/u);
+    const first = trimmed.match(/^([\p{L}\p{M}][\p{L}\p{M}.'-]{1,40})\s+/u);
     if (first && /(paid|payment|udhaar|udhar|wapas|jama|उधार|वापस|जमा|दिए|दिया|दिले)/iu.test(trimmed)) {
       const candidate = first[1];
       if (!/^(?:मेरे|मैं|मुझे|आज|कल|for|gave|got|paid|payment|credit|उधार|दिया|दिए)$/iu.test(candidate)) return candidate;
