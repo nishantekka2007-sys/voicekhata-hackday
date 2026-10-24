@@ -75,6 +75,7 @@
       setToken(response.credential);
       setProfile(data);
       updateHeader(data);
+      showAuthError("");
       document.dispatchEvent(new CustomEvent("voicekhata:authenticated", { detail: data }));
       if (window.VoiceKhata?.loadFromBackend) await window.VoiceKhata.loadFromBackend();
     } catch (error) {
