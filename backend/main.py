@@ -3,13 +3,16 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import subprocess
+import tempfile
+from functools import lru_cache
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -174,7 +177,74 @@ def _public_transaction(row: sqlite3.Row | dict) -> dict:
 @app.get("/api/health")
 def health():
     init_db()
-    return {"status": "ok", "service": "VoiceKhata API", "database": "sqlite"}
+    return {"status": "ok", "service": "VoiceKhata API", "database": "sqlite", "speech_model": os.getenv("GEMMA_MODEL_ID", "google/gemma-4-E2B-it")}
+
+
+@lru_cache(maxsize=1)
+def _gemma_audio_pipeline():
+    """Load Gemma 4 on the first request rather than during API startup."""
+    try:
+        from transformers import pipeline
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="Gemma 4 dependencies missing. Run pip install -r backend/requirements.txt.") from exc
+    model_id = os.getenv("GEMMA_MODEL_ID", "google/gemma-4-E2B-it")
+    try:
+        return pipeline(task="any-to-any", model=model_id, device_map="auto", dtype="auto")
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Could not load {model_id}. Check model access, memory, and Transformers installation.") from exc
+
+
+@app.post("/api/voice/transcribe")
+async def transcribe_voice(
+    file: UploadFile = File(...),
+    language: str = Form(default="auto"),
+    authorization: str | None = Header(default=None),
+):
+    """Transcribe browser audio with Gemma 4. This endpoint never saves a transaction."""
+    if GOOGLE_CLIENT_ID:
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Sign in with Google before using voice entry.")
+        authenticated_user(authorization)
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="The recording is empty. Please record again.")
+    if len(audio_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Recording is too large. Keep it under 30 seconds.")
+
+    with tempfile.TemporaryDirectory(prefix="voicekhata-") as temp_dir:
+        source = Path(temp_dir) / Path(file.filename or "recording.webm").name
+        wav_path = Path(temp_dir) / "recording.wav"
+        source.write_bytes(audio_bytes)
+        try:
+            converted = subprocess.run(
+                ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", str(source),
+                 "-vn", "-ac", "1", "-ar", "16000", "-t", "30", str(wav_path)],
+                capture_output=True, text=True, timeout=25, check=False,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=503, detail="FFmpeg is required. Install it with: brew install ffmpeg.") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(status_code=408, detail="Audio conversion timed out. Try a shorter recording.") from exc
+        if converted.returncode != 0 or not wav_path.exists() or wav_path.stat().st_size < 100:
+            raise HTTPException(status_code=400, detail="Could not decode this browser recording. Please record again.")
+
+        language_names = {"auto": "its original language", "en": "English", "hi": "Hindi", "bn": "Bengali"}
+        target_language = language_names.get(language, "its original language")
+        messages = [{"role": "user", "content": [
+            {"type": "text", "text": f"Transcribe the following speech segment in {target_language} into text. Only output the transcription, with no newlines. Preserve the spoken language. Write spoken numbers as digits. Do not explain or summarize."},
+            {"type": "audio", "audio": str(wav_path)},
+        ]}]
+        try:
+            output = _gemma_audio_pipeline()(messages, return_full_text=False, generate_kwargs={"max_new_tokens": 128})
+            transcript = str(output[0].get("generated_text", "")).strip()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Gemma 4 could not transcribe this recording. Try a clearer or shorter sentence.") from exc
+        if not transcript:
+            raise HTTPException(status_code=422, detail="Gemma 4 returned an empty transcript. Please speak clearly and retry.")
+        return {"text": transcript, "transcript": transcript, "model": os.getenv("GEMMA_MODEL_ID", "google/gemma-4-E2B-it")}
 
 
 @app.get("/api/auth/config")
