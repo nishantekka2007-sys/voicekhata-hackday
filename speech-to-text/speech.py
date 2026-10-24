@@ -167,7 +167,12 @@ def transcribe(audio_path: str, language: str = "auto") -> Dict[str, Any]:
     """
     if language not in LANGUAGES:
         raise ValueError(f"Unknown language '{language}'")
-    lang, prompt = LANGUAGES[language]
+    # For auto mode, prefer Hindi to avoid Urdu script output
+    if language == "auto":
+        lang, prompt = LANGUAGES["hi"]
+    else:
+        lang, prompt = LANGUAGES[language]
+
 
     model = get_model()
     started = time.perf_counter()
