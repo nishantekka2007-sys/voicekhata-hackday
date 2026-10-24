@@ -12,11 +12,12 @@ const DEMO_TRANSACTIONS = [
   {id:5,customer:"Meena Kumari",note:"Monthly grocery",kind:"credit_sale",amount:1250,created_at:new Date(Date.now()-1000*60*450).toISOString()},
   {id:6,customer:"Ramesh Kumar",note:"Old balance",kind:"payment_received",amount:300,created_at:new Date(Date.now()-1000*60*800).toISOString()}
 ];
-let transactions = DEMO_TRANSACTIONS.map(item => ({...item}));
+const DEMO_STORAGE_KEY = "voicekhata.demo.transactions.v1";
+const SHOP_STORAGE_KEY = "voicekhata.shop.profile.v1";
+let transactions = [];
 let demoMode = true;
-let mediaRecorder = null;
-let recordedChunks = [];
-let recordingStream = null;
+let recognition = null;
+let isRecognizing = false;
 let toastTimer = null;
 let chartInstance = null;
 const $ = id => document.getElementById(id);
@@ -108,11 +109,12 @@ function normalizeTransaction(raw){
 }
 async function loadFromBackend(){
   if (!window.VoiceKhataAuth?.isSignedIn()) {
-    transactions=[];
+    try { transactions = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) || "[]"); }
+    catch { transactions = []; }
     demoMode=true;
     renderAll();
     const banner=$("modeBanner");
-    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Sign in required</strong> — use Google sign-in to load your private ledger. No sample transactions are shown.</span>';
+    if(banner) banner.innerHTML='<span class="status-dot"></span><span><strong>Preview mode</strong> — entries are saved only in this browser. Sign in with Google for your private synced ledger.</span>';
     return;
   }
   try{
@@ -155,39 +157,57 @@ function parseSimpleText(text){
 async function understandTransaction(){
   const text=$("transcriptInput").value.trim();
   if(!text){showToast("Record or type a transaction first.");return;}
-  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before creating a transaction.");return;}
-  $("understandButton").disabled=true;$("understandButton").textContent="Understanding…";
+  $("understandButton").disabled=true;
+  $("understandButton").textContent="Preparing draft…";
   let parsed;
   const selectedLanguage=$("languageSelect").value;
   const language=selectedLanguage==="mixed"?"auto":selectedLanguage;
   try{
-    parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language,input_language:selectedLanguage})});
-    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) throw new Error("AI did not return a clear customer and positive amount. Please edit your words and try again.");
+    if(window.VoiceKhataAuth?.isSignedIn()){
+      parsed=await authRequest("/transactions/parse",{method:"POST",body:JSON.stringify({text,language,input_language:selectedLanguage})});
+    } else {
+      parsed=parseSimpleText(text);
+    }
+    if(!parsed || !(parsed.customer||parsed.customer_name) || !(Number(parsed.amount??parsed.amount_rupees)>0)) {
+      throw new Error("I couldn't identify both a customer name and a positive amount. Please edit the text and try again.");
+    }
     parsed=normalizeTransaction(parsed);
   }catch(error){
-    showToast((error.message||"Could not understand this transaction.")+" Nothing was saved. Check the backend connection or edit the transcript.");
+    showToast((error.message||"Could not prepare this transaction.")+" Nothing has been saved.");
     return;
-  }finally{$("understandButton").disabled=false;$("understandButton").innerHTML='Understand transaction <span>→</span>';}
+  }finally{
+    $("understandButton").disabled=false;
+    $("understandButton").innerHTML='Prepare draft <span>→</span>';
+  }
   $("reviewCustomer").value=parsed.customer||"";
   $("reviewKind").value=["credit_sale","payment_received","cash_expense"].includes(parsed.kind)?parsed.kind:"credit_sale";
   $("reviewAmount").value=parsed.amount||"";
   $("reviewNote").value=parsed.note||text;
-  $("emptyReview").classList.add("hidden");$("reviewForm").classList.remove("hidden");
-  $("reviewMessage").textContent="";
+  $("emptyReview").classList.add("hidden");
+  $("reviewForm").classList.remove("hidden");
+  $("reviewMessage").textContent=window.VoiceKhataAuth?.isSignedIn()
+    ? "Check every field before saving to your private ledger."
+    : "Preview mode: this draft will be saved in this browser only.";
 }
 async function saveTransaction(event){
   event.preventDefault();
   const item={customer:$("reviewCustomer").value.trim(),kind:$("reviewKind").value,amount:Number($("reviewAmount").value),note:$("reviewNote").value.trim()};
   if(!item.customer||!Number.isFinite(item.amount)||item.amount<=0){showToast("Please check the customer name and amount.");return;}
   if(!$("confirmCheck").checked){showToast("Please confirm that you checked the details.");return;}
-  if(!window.VoiceKhataAuth?.isSignedIn()){showToast("Sign in with Google before saving a transaction.");return;}
-  const button=$("reviewForm").querySelector('button[type="submit"]');button.disabled=true;
+  const button=$("reviewForm").querySelector('button[type="submit"]);button.disabled=true;
   try{
-    if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before saving a transaction.");
-    const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
-    transactions.unshift(normalizeTransaction(saved));
-    demoMode=false;
-    showToast("Transaction saved to your private ledger.");
+    if (window.VoiceKhataAuth?.isSignedIn()) {
+      const saved=await authRequest("/transactions",{method:"POST",body:JSON.stringify(item)});
+      transactions.unshift(normalizeTransaction(saved));
+      demoMode=false;
+      showToast("Transaction saved to your private ledger.");
+    } else {
+      const saved={...item,id:"demo-"+Date.now(),created_at:new Date().toISOString()};
+      transactions.unshift(saved);
+      localStorage.setItem(DEMO_STORAGE_KEY,JSON.stringify(transactions));
+      demoMode=true;
+      showToast("Saved in preview mode on this browser only.");
+    }
   }catch(error){
     button.disabled=false;
     showToast(error.message || "Could not save. Check your connection and try again.");
@@ -197,40 +217,83 @@ async function saveTransaction(event){
   $("reviewForm").classList.add("hidden");$("emptyReview").classList.remove("hidden");
   renderAll();navigate("ledger");
 }
-async function startRecording(){
-  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){showToast("Microphone recording isn't supported in this browser. You can type the transaction instead.");return;}
+function startRecording(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    showToast("Live speech-to-text is not supported by this browser. Try Chrome or type the transaction.");
+    return;
+  }
+  if(isRecognizing){stopRecording();return;}
   try{
-    recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    recordedChunks=[];
-    const preferred=MediaRecorder.isTypeSupported("audio/webm;codecs=opus")?"audio/webm;codecs=opus":"";
-    mediaRecorder=new MediaRecorder(recordingStream,preferred?{mimeType:preferred}:{});
-    mediaRecorder.ondataavailable=event=>{if(event.data.size)recordedChunks.push(event.data);};
-    mediaRecorder.onstop=async()=>{
-      recordingStream?.getTracks().forEach(track=>track.stop());
-      $("recordButton").classList.remove("recording");$("recordStatus").textContent="PROCESSING AUDIO";$("recordHint").textContent="Sending audio for transcription…";
-      const blob=new Blob(recordedChunks,{type:mediaRecorder.mimeType||"audio/webm"});
-      const form=new FormData();form.append("file",blob,"voicekhata-recording.webm");
-      const selectedLanguage=$("languageSelect").value;
-      form.append("language",selectedLanguage==="mixed"?"auto":selectedLanguage);
-      form.append("input_language",selectedLanguage);
-      try{
-        if (!window.VoiceKhataAuth?.isSignedIn()) throw new Error("Sign in with Google before using voice entry.");
-        const result=await authRequest("/voice/transcribe",{method:"POST",body:form});
-        const transcript=result.text||result.transcript||"";
-        if(!transcript.trim()) throw new Error("The speech service returned an empty transcript.");
-        $("transcriptInput").value=transcript;
-        $("recordHint").textContent="Transcription ready — check the words, then choose Understand transaction";
-        showToast("Audio transcribed. Now review the transaction details.");
-      }catch(error){
-        $("recordHint").textContent="Recording finished, but transcription API isn't connected yet.";
-        showToast("Audio was not transcribed. Connect the faster-whisper endpoint or type the transaction.");
-      }finally{$("recordStatus").textContent="READY WHEN YOU ARE";}
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    const selectedLanguage=$("languageSelect").value;
+    recognition.lang = selectedLanguage==="hi" ? "hi-IN"
+      : selectedLanguage==="bn" ? "bn-IN"
+      : selectedLanguage==="en" ? "en-IN" : "en-IN";
+    const existingText=$("transcriptInput").value.trim();
+    let finalText=existingText ? existingText+" " : "";
+    recognition.onstart=()=>{
+      isRecognizing=true;
+      $("recordButton").classList.add("recording");
+      $("recordStatus").textContent="RECORDING NOW";
+      $("recordHint").textContent="Speak clearly. Click the microphone again to stop.";
+      $("recordButton").setAttribute("aria-label","Stop recording");
     };
-    mediaRecorder.start();$("recordButton").classList.add("recording");$("recordStatus").textContent="RECORDING NOW";$("recordHint").textContent="Tap the mic again when you're done";
-    $("recordButton").setAttribute("aria-label","Stop recording");$("recordButton").onclick=stopRecording;
-  }catch(error){showToast("Microphone permission was blocked. Allow access or type the transaction.");}
+    recognition.onresult=(event)=>{
+      let interim="";
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const phrase=event.results[i][0].transcript;
+        if(event.results[i].isFinal) finalText+=phrase+" ";
+        else interim+=phrase;
+      }
+      $("transcriptInput").value=(finalText+interim).trim();
+    };
+    recognition.onerror=(event)=>{
+      const messages={
+        "not-allowed":"Microphone access is blocked. Allow microphone permission for this site.",
+        "service-not-allowed":"Browser speech recognition is blocked.",
+        "no-speech":"No speech detected. Try again and speak after recording starts.",
+        "audio-capture":"No working microphone was found."
+      };
+      showToast(messages[event.error]||("Speech recognition error: "+event.error));
+    };
+    recognition.onend=()=>{
+      isRecognizing=false;
+      $("recordButton").classList.remove("recording");
+      $("recordStatus").textContent="READY WHEN YOU ARE";
+      $("recordHint").textContent=$("transcriptInput").value.trim()
+        ? "Transcription ready — check the text, then choose Prepare draft."
+        : "No text captured. Try again or type the transaction.";
+      $("recordButton").setAttribute("aria-label","Start recording");
+    };
+    recognition.start();
+  }catch(error){
+    isRecognizing=false;
+    showToast("Could not start speech recognition. Check microphone permission and try again.");
+  }
 }
-function stopRecording(){if(mediaRecorder&&mediaRecorder.state!=="inactive"){mediaRecorder.stop();$("recordButton").setAttribute("aria-label","Start recording");$("recordButton").onclick=startRecording;}}
+function stopRecording(){
+  if(recognition && isRecognizing){
+    try{recognition.stop();}catch{}
+  }
+}
+function loadShopProfile(){
+  const params=new URLSearchParams(window.location.search);
+  let profile={};
+  try{profile=JSON.parse(localStorage.getItem(SHOP_STORAGE_KEY)||"{}");}catch{}
+  const ownerName=(params.get("ownerName")||profile.ownerName||"").trim();
+  const shopName=(params.get("shopName")||profile.shopName||"").trim();
+  if(ownerName||shopName){
+    profile={ownerName,shopName};
+    try{localStorage.setItem(SHOP_STORAGE_KEY,JSON.stringify(profile));}catch{}
+  }
+  const shopLabel=$("shopNameLabel");
+  const ownerLabel=$("shopOwnerLabel");
+  if(shopLabel)shopLabel.textContent=profile.shopName||"Your shop";
+  if(ownerLabel)ownerLabel.textContent=profile.ownerName||"Set up your shop";
+}
 function setDates(){
   const now=new Date();
   $("todayLabel").textContent=now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
@@ -253,7 +316,10 @@ $("closeHelp").addEventListener("click",()=>$("helpModal").classList.add("hidden
 $("helpModal").addEventListener("click",event=>{if(event.target===$("helpModal"))$("helpModal").classList.add("hidden");});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"){$("helpModal").classList.add("hidden");$("sidebar").classList.remove("open");}});
 setDates();
-if(!window.VoiceKhataAuth?.isSignedIn()){transactions=[];demoMode=true;}
+loadShopProfile();
+try { transactions = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY) || "[]"); }
+catch { transactions = []; }
+if(!window.VoiceKhataAuth?.isSignedIn())demoMode=true;
 renderAll();
 document.addEventListener("voicekhata:authenticated",()=>loadFromBackend());
 document.addEventListener("voicekhata:signed-out",()=>{transactions=[];demoMode=true;renderAll();});
