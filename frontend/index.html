@@ -440,7 +440,8 @@
               </div>
               <div class="review-fields">
                 <div class="review-field" id="rvCustomerNameWrap"><label for="rvCustomer">CUSTOMER NAME</label><input id="rvCustomer" placeholder="e.g. Ram"></div>
-<div class="review-field" id="rvCustomerIdentityWrap"><label for="rvCustomerIdentity">IDENTIFY THIS CUSTOMER (REQUIRED FOR NEW CREDIT)</label><input id="rvCustomerIdentity" placeholder="e.g. phone last 4 digits / village / house"><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Same name? Add a unique detail so payments go to the right person.</small></div>
+<div class="review-field" id="rvCreditExistingWrap" style="display:none"><label for="rvCreditExistingCustomer">EXISTING CUSTOMER? (OPTIONAL)</label><select id="rvCreditExistingCustomer"><option value="">Create a new customer account</option></select><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Select an existing account to keep all their bills together. No ID needs to be remembered.</small></div>
+<div class="review-field" id="rvCustomerIdentityWrap"><label for="rvCustomerIdentity">IDENTIFY THIS CUSTOMER (NEW ACCOUNT)</label><input id="rvCustomerIdentity" placeholder="e.g. phone number / village / house"><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">This detail helps distinguish people with the same name.</small></div>
 <div class="review-field" id="rvExistingCustomerWrap" style="display:none"><label for="rvExistingCustomer">PAYMENT FROM WHICH CUSTOMER?</label><select id="rvExistingCustomer"><option value="">Choose the exact customer</option></select><small style="display:block;color:var(--muted);font-size:10px;margin-top:4px">Choose the existing customer; do not type only a name.</small></div>
                 <div class="review-field">
                   <label for="rvKind">TRANSACTION TYPE</label>
@@ -593,24 +594,40 @@ function showToast(msg) {
 }
 
 // ── Onboarding ────────────────────────────────────────────
+function accountOptionValue(c) { return c.customer_id != null ? String(c.customer_id) : "legacy:" + c.customer; }
+function accountLabel(c) { return (c.customer_code ? c.customer_code + " · " : "") + c.customer + (c.identifier ? " · " + c.identifier : ""); }
+
 function refreshExistingCustomerOptions() {
   const select = $("rvExistingCustomer");
   if(!select) return;
   const previous = select.value;
   const list = customerSummaries().filter(c => c.balance > 0);
   select.innerHTML = '<option value="">Choose the exact customer</option>' + list.map(c =>
-    '<option value="' + esc(c.customer) + '">' + esc(c.customer) + ' — due ' + esc(rupees(c.balance)) + '</option>'
+    '<option value="' + esc(accountOptionValue(c)) + '">' + esc(accountLabel(c)) + ' — due ' + esc(rupees(c.balance)) + '</option>'
   ).join("");
-  if(list.some(c => c.customer === previous)) select.value = previous;
+  if(list.some(c => accountOptionValue(c) === previous)) select.value = previous;
+}
+function refreshCreditCustomerOptions() {
+  const select = $("rvCreditExistingCustomer");
+  if(!select) return;
+  const previous = select.value;
+  const list = customerSummaries();
+  select.innerHTML = '<option value="">Create a new customer account</option>' + list.map(c =>
+    '<option value="' + esc(accountOptionValue(c)) + '">' + esc(accountLabel(c)) + ' — due ' + esc(rupees(c.balance)) + '</option>'
+  ).join("");
+  if(list.some(c => accountOptionValue(c) === previous)) select.value = previous;
 }
 
 function updateReviewPaymentFields() {
   const kind = $("rvKind")?.value || "credit_sale";
   const isPayment = kind === "payment_received";
   if($("rvCustomerNameWrap")) $("rvCustomerNameWrap").style.display = isPayment ? "none" : "";
-  if($("rvCustomerIdentityWrap")) $("rvCustomerIdentityWrap").style.display = kind === "credit_sale" ? "" : "none";
+  const isCredit = kind === "credit_sale";
+  if($("rvCustomerIdentityWrap")) $("rvCustomerIdentityWrap").style.display = isCredit && !$("rvCreditExistingCustomer")?.value ? "" : "none";
+  if($("rvCreditExistingWrap")) $("rvCreditExistingWrap").style.display = isCredit ? "" : "none";
   if($("rvExistingCustomerWrap")) $("rvExistingCustomerWrap").style.display = isPayment ? "" : "none";
   if(isPayment) refreshExistingCustomerOptions();
+  if(isCredit) refreshCreditCustomerOptions();
   const wrap = $("rvPaidNowWrap"), paidInput = $("rvPaidNow");
   const amount = Number($("rvAmount")?.value || 0), paid = Number(paidInput?.value || 0);
   if(wrap) wrap.style.display = kind === "credit_sale" ? "" : "none";
@@ -618,8 +635,8 @@ function updateReviewPaymentFields() {
   const preview = $("rvBalancePreview");
   if(preview) {
     if(isPayment) {
-      const selected = customerSummaries().find(c => c.customer === $("rvExistingCustomer")?.value);
-      preview.textContent = selected ? `Outstanding balance for ${selected.customer}: ${rupees(selected.balance)}. Enter the repayment amount below.` : "Select the exact existing customer to record a repayment.";
+      const selected = customerSummaries().find(c => accountOptionValue(c) === $("rvExistingCustomer")?.value);
+      preview.textContent = selected ? `Outstanding balance for ${accountLabel(selected)}: ${rupees(selected.balance)}. Enter the repayment amount below.` : "Select the exact existing customer to record a repayment.";
       preview.style.background = "#f3f8f4";
     } else if(kind !== "credit_sale") {
       preview.textContent = "Shop expenses are saved as separate transactions.";
@@ -636,6 +653,7 @@ function updateReviewPaymentFields() {
 
 $("rvKind").addEventListener("change", updateReviewPaymentFields);
 $("rvExistingCustomer").addEventListener("change", updateReviewPaymentFields);
+$("rvCreditExistingCustomer").addEventListener("change", updateReviewPaymentFields);
 $("rvAmount").addEventListener("input", updateReviewPaymentFields);
 $("rvPaidNow").addEventListener("input", updateReviewPaymentFields);
 
@@ -702,10 +720,13 @@ function customerSummaries() {
   const summaries = new Map();
   for(const t of transactions) {
     if(!t.customer || t.kind === "cash_expense") continue;
-    const key = String(t.customer).trim().toLocaleLowerCase();
+    const key = t.customer_id != null ? "id:" + String(t.customer_id) : "legacy:" + String(t.customer).trim().toLocaleLowerCase();
     if(!key) continue;
     if(!summaries.has(key)) summaries.set(key, {
-      customer: String(t.customer).trim(), total: 0, paid: 0, balance: 0,
+      customer: String(t.customer).trim(), customer_id: t.customer_id ?? null,
+      customer_code: t.customer_code || (t.customer_id != null ? "CUS-" + String(t.customer_id).padStart(6,"0") : ""),
+      identifier: t.customer_identifier || "",
+      total: 0, paid: 0, balance: 0,
       lastActivity: t.created_at || "", transactions: 0
     });
     const item = summaries.get(key);
@@ -839,9 +860,9 @@ function renderDuePayments() {
   const previous = select?.value || "";
   if(select) {
     select.innerHTML = '<option value="">Choose customer with outstanding due</option>' + due.map(c =>
-      '<option value="' + esc(c.customer) + '">' + esc(c.customer) + ' — due ' + esc(rupees(c.balance)) + '</option>'
+      '<option value="' + esc(accountOptionValue(c)) + '">' + esc(accountLabel(c)) + ' — due ' + esc(rupees(c.balance)) + '</option>'
     ).join("");
-    if(due.some(c => c.customer === previous)) select.value = previous;
+    if(due.some(c => accountOptionValue(c) === previous)) select.value = previous;
   }
   $("dueCustomerCount").textContent = due.length + (due.length === 1 ? " customer" : " customers");
   $("dueCustomerList").innerHTML = due.length ? due.map(c =>
@@ -857,7 +878,7 @@ function selectDueCustomer(customer) {
 }
 
 function updateDuePaymentBalance() {
-  const customer = customerSummaries().find(c => c.customer === $("dueCustomerSelect")?.value);
+  const customer = customerSummaries().find(c => accountOptionValue(c) === $("dueCustomerSelect")?.value);
   const preview = $("dueCustomerBalance");
   if(!preview) return;
   preview.textContent = customer ? customer.customer + " currently owes " + rupees(customer.balance) + ". Repayment cannot exceed this amount." : "Select a customer to view their outstanding balance.";
@@ -866,17 +887,18 @@ function updateDuePaymentBalance() {
 $("dueCustomerSelect").addEventListener("change", updateDuePaymentBalance);
 
 async function recordDuePayment() {
-  const customer = $("dueCustomerSelect").value;
+  const selectedValue = $("dueCustomerSelect").value;
   const amount = Number($("duePaymentAmount").value);
   const note = $("duePaymentNote").value.trim() || "Due repayment";
-  const account = customerSummaries().find(c => c.customer === customer);
+  const account = customerSummaries().find(c => accountOptionValue(c) === selectedValue);
+  const customer = account?.customer || "";
   if(!account || account.balance <= 0) { showToast("Choose a customer who has an outstanding due."); return; }
   if(!Number.isFinite(amount) || amount <= 0 || Math.round(amount*100)/100 !== amount) { showToast("Enter a valid repayment amount."); $("duePaymentAmount").focus(); return; }
   if(amount > account.balance) { showToast("Payment cannot exceed this customer's due of " + rupees(account.balance) + "."); $("duePaymentAmount").focus(); return; }
   const button = document.querySelector("#view-due-payments .btn-primary");
   if(button) button.disabled = true;
   try {
-    const entry = {customer,kind:"payment_received",amount,note};
+    const entry = {customer,customer_id:account?.customer_id ?? null,kind:"payment_received",amount,note};
     if(window.VoiceKhataCloud?.signedIn()) {
       await window.VoiceKhataCloud.request("/transactions",{method:"POST",body:JSON.stringify(entry)});
       await window.VoiceKhataCloud.loadLedger();
@@ -891,7 +913,7 @@ async function recordDuePayment() {
     renderDashboard();
     renderLedger();
     renderCustomers();
-    const updated = customerSummaries().find(c => c.customer === customer);
+    const updated = customerSummaries().find(c => c.customer_id != null && account?.customer_id != null ? String(c.customer_id) === String(account.customer_id) : c.customer === customer);
     showToast("Repayment recorded. " + customer + " now owes " + rupees(updated?.balance || 0) + ".");
   } catch(error) {
     showToast("Could not record repayment: " + error.message + ". Check the ledger before retrying.");
@@ -1064,6 +1086,7 @@ function showReviewForm(parsed) {
   $("rvCustomer").value = parsed.customer || "";
   $("rvCustomerIdentity").value = "";
   $("rvExistingCustomer").value = "";
+  $("rvCreditExistingCustomer").value = "";
   $("rvKind").value = parsed.kind || "credit_sale";
   $("rvAmount").value = parsed.amount || "";
   $("rvPaidNow").value = parsed.paid_now || 0;
@@ -1082,21 +1105,27 @@ async function confirmAndSave() {
   const kind = $("rvKind").value;
   const typedName = $("rvCustomer").value.trim();
   const identity = $("rvCustomerIdentity").value.trim();
-  const customer = kind === "payment_received" ? $("rvExistingCustomer").value : (kind === "credit_sale" && identity ? typedName + " · " + identity : typedName);
+  const selectedValue = kind === "payment_received" ? $("rvExistingCustomer").value : (kind === "credit_sale" ? $("rvCreditExistingCustomer").value : "");
+  const selectedAccount = selectedValue ? customerSummaries().find(c => accountOptionValue(c) === selectedValue) : null;
+  const customer = selectedAccount ? selectedAccount.customer : (kind === "cash_expense" ? typedName : (kind === "credit_sale" && identity ? typedName + " · " + identity : typedName));
+  const customerId = selectedAccount?.customer_id ?? null;
   const amount = Number($("rvAmount").value);
   const paidNow = kind === "credit_sale" ? Number($("rvPaidNow").value || 0) : 0;
   const note = $("rvNote").value.trim();
-  if (!customer) {
-    showToast(kind === "payment_received" ? "Choose the exact existing customer." : "Please enter a customer name.");
-    if(kind === "payment_received") $("rvExistingCustomer").focus(); else $("rvCustomer").focus();
-    return;
+  if (kind === "payment_received" && !selectedAccount) {
+    showToast("Choose the exact existing customer account.");
+    $("rvExistingCustomer").focus(); return;
   }
-  if(kind === "credit_sale" && !identity) {
+  if (!customer) {
+    showToast("Please enter a customer name.");
+    $("rvCustomer").focus(); return;
+  }
+  if(kind === "credit_sale" && !selectedAccount && !identity) {
     showToast("Add a unique identifier (phone last 4 digits, village, or house) to prevent mixing up customers with the same name.");
     $("rvCustomerIdentity").focus();
     return;
   }
-  if(kind === "payment_received" && amount > (customerSummaries().find(c => c.customer === customer)?.balance || 0)) {
+  if(kind === "payment_received" && amount > (selectedAccount?.balance || 0)) {
     showToast("Payment is greater than this customer's outstanding balance. Check the selected customer and amount.");
     $("rvAmount").focus();
     return;
@@ -1110,9 +1139,21 @@ async function confirmAndSave() {
   const button = document.querySelector(".btn-confirm");
   if (button) button.disabled = true;
   try {
-    const entries = [{customer,kind,amount,note}];
+    let accountId = customerId;
+    let savedCustomer = customer;
+    if(kind === "credit_sale" && !selectedAccount) {
+      if(window.VoiceKhataCloud?.signedIn()) {
+        const created = await window.VoiceKhataCloud.request("/customers", {method:"POST",body:JSON.stringify({display_name:typedName,identifier})});
+        accountId = created.id;
+        savedCustomer = created.display_name + " · " + created.identifier;
+      } else {
+        accountId = "local-CUS-" + Date.now();
+        savedCustomer = typedName + " · " + identity;
+      }
+    }
+    const entries = [{customer:savedCustomer,customer_id:accountId,kind,amount,note}];
     if(kind === "credit_sale" && paidNow > 0) {
-      entries.push({customer,kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
+      entries.push({customer:savedCustomer,customer_id:accountId,kind:"payment_received",amount:paidNow,note:note ? `Payment against bill: ${note}` : "Payment against bill"});
     }
     if (window.VoiceKhataCloud?.signedIn()) {
       for(const entry of entries) {
