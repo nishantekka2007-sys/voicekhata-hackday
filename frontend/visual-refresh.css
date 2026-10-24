@@ -1,0 +1,66 @@
+/* VoiceKhata visual refresh — presentation layer only.
+   Existing IDs, forms, navigation, and event handlers remain untouched. */
+:root{--green:#17624a;--green-2:#21805f;--mint:#e9f7ee;--ink:#172a22;--muted:#718078;--line:#e4ece6;--canvas:#f5f8f5;--shadow:0 14px 40px rgba(24,58,41,.07)}
+html{scroll-behavior:smooth}
+body{background:radial-gradient(ellipse at 88% 0%,rgba(205,232,214,.38),transparent 34%),var(--canvas);letter-spacing:-.01em}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+button{transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(45,139,94,.28);outline-offset:2px}
+/* Photographic onboarding atmosphere */
+#onboarding{position:relative;isolation:isolate;overflow:hidden;grid-template-columns:minmax(0,1fr);background:linear-gradient(115deg,rgba(246,250,246,.98) 0%,rgba(246,250,246,.92) 48%,rgba(238,247,239,.64) 100%),url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1800&q=85") center/cover;padding:clamp(18px,4vw,56px)}
+#onboarding::before{content:"";position:absolute;z-index:-1;inset:0 0 0 54%;background:linear-gradient(90deg,rgba(245,249,245,.12),rgba(23,58,41,.05)),url("https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1400&q=85") center/cover;opacity:.9;border-radius:36px 0 0 36px;animation:photoReveal .9s ease both}
+#onboarding::after{content:"VOICE FIRST · MADE FOR EVERY SHOP";position:absolute;right:clamp(24px,6vw,90px);bottom:42px;color:#fff;font-size:10px;font-weight:800;letter-spacing:2.2px;text-shadow:0 2px 14px rgba(0,0,0,.38)}
+.ob-card{position:relative;width:min(100%,460px);justify-self:start;margin-left:clamp(0px,5vw,84px);padding:clamp(25px,3.4vw,42px);border:1px solid rgba(255,255,255,.88);border-radius:24px;box-shadow:0 28px 80px rgba(24,58,41,.13);animation:cardEnter .65s cubic-bezier(.2,.7,.2,1) both;backdrop-filter:blur(12px)}
+.brand-mark{box-shadow:0 7px 18px rgba(23,98,74,.2)}
+.ob-h1{font-size:clamp(29px,3.2vw,38px);line-height:1.12;letter-spacing:-1.7px}
+.ob-sub{font-size:14px;line-height:1.8}
+.field-wrap input{min-height:47px;border-radius:11px;background:#fcfdfc;transition:border-color .2s,box-shadow .2s}
+.field-wrap input:focus{border-color:#79b994;box-shadow:0 0 0 4px rgba(76,157,109,.12)}
+.btn-primary{min-height:49px;border-radius:11px;box-shadow:0 8px 18px rgba(23,98,74,.18)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(23,98,74,.23)}
+/* App shell and navigation */
+#app{background:transparent}
+.sidebar{background:rgba(255,255,255,.94);border-right-color:#e5ece6;box-shadow:8px 0 34px rgba(27,61,42,.025);backdrop-filter:blur(16px)}
+.sidebar .brand{margin-bottom:8px}
+.nav-btn{border-radius:11px;min-height:44px}
+.nav-btn.active{box-shadow:inset 3px 0 0 var(--green)}
+.nav-btn:hover{transform:translateX(2px)}
+.main,.main-content{background:transparent}
+.topbar,.app-header{border-color:rgba(221,232,224,.9)}
+.topbar{backdrop-filter:blur(12px)}
+.page-heading h1,h1{letter-spacing:-1.2px}
+.metric-card,.panel,.voice-card,.review-card,.ledger-panel,.insight-card{border:1px solid rgba(225,235,227,.95);border-radius:17px;box-shadow:var(--shadow);transition:transform .22s ease,box-shadow .22s ease}
+.metric-card:hover,.insight-card:hover{transform:translateY(-3px);box-shadow:0 18px 42px rgba(24,58,41,.1)}
+.panel{padding:clamp(16px,2vw,24px)}
+.primary-button,.secondary-button,.btn,.tab-btn{border-radius:11px;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+.primary-button:hover,.btn-primary:hover,.btn:hover{transform:translateY(-1px)}
+.quick-action{border-radius:12px;padding:13px 10px;transition:background .2s,transform .2s}
+.quick-action:hover{background:#f6faf6;transform:translateX(3px)}
+.quick-action-icon,.metric-icon{border-radius:11px}
+.record-area{border-style:solid;background:linear-gradient(145deg,#f8fcf8,#f0f8f2)}
+.record-button{box-shadow:0 0 0 7px #e5f2e8,0 9px 22px rgba(23,75,62,.18);transition:transform .2s,box-shadow .2s}
+.record-button:hover{transform:scale(1.04)}
+table tbody tr{transition:background .15s}
+table tbody tr:hover{background:#f8fbf8}
+.type-pill,.status-pill{border-radius:7px}
+.customer-card{border-radius:14px;background:#fff;transition:transform .2s,box-shadow .2s}
+.customer-card:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(24,58,41,.07)}
+.toast{border-radius:13px;box-shadow:0 14px 36px rgba(18,44,32,.2)}
+.modal{border-radius:20px}
+input,textarea,select{transition:border-color .2s,box-shadow .2s}
+/* Alternate tab-based frontend, if served by the Python template */
+.app-header{padding:24px clamp(18px,4vw,42px);background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.tab-nav{gap:8px;padding:8px;border-radius:14px;background:#eaf2ec}
+.tab-btn{padding:12px 18px;font-weight:700}
+.tab-btn.active{background:#fff;box-shadow:0 4px 14px rgba(24,58,41,.09)}
+.tab-content{animation:tabEnter .35s ease both}
+.mic-area,.transcription-box,.customer-list,.today-stats{border-radius:17px}
+.mic-btn{transition:transform .2s,box-shadow .2s}
+.mic-btn:hover{transform:scale(1.04);box-shadow:0 12px 28px rgba(23,98,74,.2)}
+.modal-overlay{backdrop-filter:blur(6px)}
+@keyframes cardEnter{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes photoReveal{from{opacity:0;transform:translateX(12px)}to{opacity:.9;transform:translateX(0)}}
+@keyframes tabEnter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:850px){#onboarding{padding:20px}#onboarding::before{inset:0;border-radius:0;opacity:.2}#onboarding::after{display:none}.ob-card{justify-self:center;margin-left:0}.sidebar{backdrop-filter:blur(20px)}}
+@media(max-width:520px){.ob-card{padding:25px 21px;border-radius:20px}.app-header{border-radius:14px;padding:17px}.tab-nav{overflow-x:auto}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
