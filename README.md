@@ -67,7 +67,7 @@ Look up customers by ID or name to record repayments against existing dues and k
 | **Data Safety** | Physical books subject to loss or water damage | Digital ledger stored locally and syncable to cloud SQLite |
 
 ### Page 6 - Team
-- **Team Name:** VoiceKhata Builders
+- **Team Name:** Three Returnees
 - **Project Repository:** [voicekhata-hackday](https://github.com/nishantekka2007-sys/voicekhata-hackday)
 
 ---
